@@ -1,0 +1,17 @@
+name = "moto-id-app"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "moto-id-app"
+database_id = "428f12a8-10a5-4bac-b0d9-04e3b8ae7fdb"
+
+# R2 isn't enabled on the Cloudflare account yet (Account Home -> R2 -> Enable R2).
+# Once it is, create the bucket with:
+#   npx wrangler r2 bucket create moto-id-documents
+# then uncomment this binding and redeploy.
+# [[r2_buckets]]
+# binding = "DOCS"
+# bucket_name = "moto-id-documents"
