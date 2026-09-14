@@ -135,7 +135,7 @@ documents.get("/vehicles/:id/folder/:folder", async (c) => {
     </div>`;
 
     return c.html(
-          appShell(`${FOLDER_LABEL[folder]} — Moto ID`, `My Collection / ${esc(vehicle.registration_number)} / ${FOLDER_LABEL[folder]}`, body, user)
+          appShell(`${FOLDER_LABEL[folder]} — Moto ID`, `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / ${FOLDER_LABEL[folder]}`, body, user)
     );
 });
 
