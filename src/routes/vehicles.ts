@@ -9,6 +9,7 @@ import {
     getVehicleById,
     countDocumentsByFolder,
     recentActivity,
+    setVehiclePhoto,
     type Vehicle,
 } from "../lib/db";
 
@@ -129,12 +130,72 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                           return c.redirect(`/vehicles/${list[0].id}`);
                                                                                         });
 
+function photoBox(vehicle: Vehicle, icon: string, uploadEnabled: boolean): string {
+    const inner = vehicle.photo_r2_key
+    ? `<img src="/vehicles/${vehicle.id}/photo" alt="${esc(vehicle.make)} ${esc(vehicle.model)}" style="width:100%;height:100%;object-fit:cover;display:block">`
+        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${icon}</div>`;
+
+    if (!uploadEnabled) {
+        return `<div style="height:114px;background:var(--bg-panel);border:1px solid var(--hairline);margin-bottom:20px">${inner}</div>`;
+    }
+
+    return `
+    <form method="post" action="/vehicles/${vehicle.id}/photo" enctype="multipart/form-data">
+    <div class="photo-upload" style="height:114px;background:var(--bg-panel);border:1px solid var(--hairline);margin-bottom:20px">
+    ${inner}
+    <div class="photo-overlay">${vehicle.photo_r2_key ? "Change photo" : "Click to add a photo"}</div>
+    <input type="file" name="file" accept="image/png,image/jpeg,image/webp" onchange="this.form.requestSubmit()">
+    </div>
+    </form>`;
+}
+
                                                                                         async function requireOwnedVehicle(c: any): Promise<Vehicle | null> {
                                                                                           const user = c.get("user")!;
                                                                                           const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
                                                                                           if (!vehicle || vehicle.user_id !== user.id) return null;
                                                                                             return vehicle;
                                                                                         }
+
+vehicles.post("/vehicles/:id/photo", async (c) => {
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+    if (!c.env.DOCS) return c.redirect(`/vehicles/${vehicle.id}`);
+
+    const body = await c.req.parseBody();
+    const file = body.file;
+    if (!(file instanceof File) || file.size === 0 || !file.type.startsWith("image/")) {
+        return c.redirect(`/vehicles/${vehicle.id}`);
+    }
+
+    const r2Key = `${vehicle.id}/cover/${crypto.randomUUID()}-${file.name}`;
+    await c.env.DOCS.put(r2Key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type || undefined },
+    });
+
+    const previousKey = vehicle.photo_r2_key;
+    await setVehiclePhoto(c.env.DB, vehicle.id, r2Key);
+    if (previousKey) {
+        try {
+            await c.env.DOCS.delete(previousKey);
+        } catch {
+            // best-effort cleanup of the old photo — ignore failures
+        }
+    }
+
+    return c.redirect(`/vehicles/${vehicle.id}`);
+});
+
+vehicles.get("/vehicles/:id/photo", async (c) => {
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle || !vehicle.photo_r2_key || !c.env.DOCS) return c.notFound();
+
+    const object = await c.env.DOCS.get(vehicle.photo_r2_key);
+    if (!object) return c.notFound();
+
+    c.header("Content-Type", object.httpMetadata?.contentType ?? "image/jpeg");
+    c.header("Cache-Control", "private, max-age=3600");
+    return c.body(object.body as any);
+});
 
                                                                                           vehicles.get("/vehicles/:id", async (c) => {
                                                                                             const user = c.get("user")!;
@@ -173,8 +234,7 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                                   <!-- SIDEBAR -->
                                                                                                   <div style="flex:0 0 300px;display:flex;flex-direction:column;gap:20px;min-width:260px">
                                                                                                     <div>
-                                                                                              <div style="height:114px;background:var(--bg-panel);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;margin-bottom:20px">${icon}</div>
-                                                                                              <div style="font-family:var(--font-display);font-size:21px;margin-bottom:2px">${esc(vehicle.make)} ${esc(vehicle.model)}</div>
+${photoBox(vehicle, icon, !!c.env.DOCS)}                                                                                              <div style="font-family:var(--font-display);font-size:21px;margin-bottom:2px">${esc(vehicle.make)} ${esc(vehicle.model)}</div>
                                                                                               <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:18px">${esc(subtitle || "—")}</div>
 
                                                                                               <div style="border-top:1px solid var(--hairline);padding-top:16px;margin-bottom:16px">
