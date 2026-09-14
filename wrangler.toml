@@ -11,3 +11,11 @@ database_id = "428f12a8-10a5-4bac-b0d9-04e3b8ae7fdb"
 [[r2_buckets]]
 binding = "DOCS"
 bucket_name = "moto-id-documents"
+
+[vars]
+# Non-secret sender identity for transactional email (Resend). The actual
+# RESEND_API_KEY secret is set separately via `wrangler secret put RESEND_API_KEY`
+# or the Cloudflare dashboard (Workers & Pages -> moto-id -> Settings -> Variables
+# and Secrets) — never commit an API key here.
+RESEND_FROM_EMAIL = "Moto ID <noreply@digitalvehicleid.com>"
+PUBLIC_ORIGIN = "https://www.digitalvehicleid.com"
