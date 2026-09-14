@@ -288,6 +288,6 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                                   </div>
                                                                                                                                   `;
                                                                                                                                 
-                                                                                                                                return c.html(appShell(`${vehicle.make} ${vehicle.model} — Moto ID`, `My Collection / ${esc(vehicle.registration_number)}`, body, user));
+                                                                                                                                return c.html(appShell(`${vehicle.make} ${vehicle.model} — Moto ID`, `<a href="/dashboard">My Collection</a> / ${esc(vehicle.registration_number)}`, body, user));
                                                                                                                                 });
                                                                                                                                 
