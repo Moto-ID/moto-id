@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { pageHead } from "../lib/styles";
 import { esc } from "../lib/html";
-import { getVehicleByMotoIdNumber, countDocumentsByFolder, recordScan, lastScan } from "../lib/db";
+import { getVehicleByMotoIdNumber, countDocumentsByFolder, recordScan, lastScan, listPublicDocuments, getPublicDocument } from "../lib/db";
 
 export const verify = new Hono<Env>();
 
@@ -53,6 +53,45 @@ function notFoundPage(motoIdNumber: string): string {
     const counts = await countDocumentsByFolder(c.env.DB, vehicle.id);
       const serviceRecords = counts.service + counts.invoice;
     const subtitle = [vehicle.year, vehicle.colour].filter(Boolean).join(" · ");
+
+    const publicDocs = await listPublicDocuments(c.env.DB, vehicle.id);
+    const publicPhotos = publicDocs.filter((d) => d.folder === "photo" && d.content_type?.startsWith("image/"));
+    const publicFiles = publicDocs.filter((d) => !(d.folder === "photo" && d.content_type?.startsWith("image/")));
+
+    const photosSection =
+          publicPhotos.length > 0
+                ? `
+    <div style="border:1px solid var(--hairline);margin-bottom:18px">
+      <div style="padding:16px 22px;border-bottom:1px solid var(--hairline);font-weight:600;font-size:12.5px">Photos</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;padding:18px 22px">
+        ${publicPhotos
+              .map(
+                    (d) => `
+        <a href="/verify/${esc(vehicle.moto_id_number)}/documents/${d.id}" target="_blank">
+          <img src="/verify/${esc(vehicle.moto_id_number)}/documents/${d.id}" alt="${esc(d.filename)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--hairline)">
+        </a>`
+              )
+              .join("")}
+      </div>
+    </div>`
+                : "";
+
+    const filesSection =
+          publicFiles.length > 0
+                ? `
+    <div style="border:1px solid var(--hairline);margin-bottom:22px">
+      <div style="padding:16px 22px;border-bottom:1px solid var(--hairline);font-weight:600;font-size:12.5px">Public documents</div>
+      ${publicFiles
+            .map(
+                  (d) => `
+      <a href="/verify/${esc(vehicle.moto_id_number)}/documents/${d.id}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 22px;border-bottom:1px solid var(--hairline);font-size:12.5px">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.filename)}</span>
+        <span class="mono" style="color:var(--ink-subtle);font-size:11px;white-space:nowrap">${new Date(d.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+      </a>`
+            )
+            .join("")}
+    </div>`
+                : "";
 
       const body = `<!doctype html>
     <html lang="en">
@@ -108,6 +147,9 @@ function notFoundPage(motoIdNumber: string): string {
         </div>
       </div>
 
+      ${photosSection}
+      ${filesSection}
+
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">
     <a href="mailto:hello@motoid.example?subject=Full%20history%20request%20-%20${esc(
           vehicle.moto_id_number
@@ -124,4 +166,21 @@ function notFoundPage(motoIdNumber: string): string {
 
   return c.html(body);
   });
-  
+
+  verify.get("/verify/:motoIdNumber/documents/:docId", async (c) => {
+    const motoIdNumber = c.req.param("motoIdNumber");
+    const vehicle = await getVehicleByMotoIdNumber(c.env.DB, motoIdNumber);
+    if (!vehicle || !c.env.DOCS) return c.notFound();
+
+    const doc = await getPublicDocument(c.env.DB, vehicle.id, c.req.param("docId"));
+    if (!doc) return c.notFound();
+
+    const object = await c.env.DOCS.get(doc.r2_key);
+    if (!object) return c.notFound();
+
+    c.header("Content-Type", doc.content_type ?? "application/octet-stream");
+    c.header("Content-Disposition", `inline; filename="${doc.filename.replace(/"/g, "")}"`);
+    c.header("Cache-Control", "public, max-age=3600");
+    return c.body(object.body as any);
+  });
+
