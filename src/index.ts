@@ -41,6 +41,26 @@ app.get("/settings", async (c) => {
                                                                                                     .join("")
                                                                                                         : `<div style="padding:22px;font-size:13px;color:var(--ink-subtle)">No vehicles registered yet.</div>`;
                                                                                                         
+const passwordError = c.req.query("pwerror");
+const passwordOk = c.req.query("pwok") === "1";
+const passwordSection = `
+  <div style="margin-top:36px">
+    <div style="font-family:var(--font-display);font-size:20px;margin-bottom:16px">Change password</div>
+    ${passwordOk ? `<div style="font-size:13px;color:var(--ink-muted);background:var(--bg-panel);padding:12px 14px;margin-bottom:16px;max-width:360px">Password updated.</div>` : ""}
+    ${passwordError ? `<div class="error" style="max-width:360px">${esc(passwordError)}</div>` : ""}
+    <form method="post" action="/settings/password" style="max-width:360px">
+      <div class="field">
+        <label>CURRENT PASSWORD</label>
+        <input type="password" name="currentPassword" required autocomplete="current-password">
+      </div>
+      <div class="field">
+        <label>NEW PASSWORD</label>
+        <input type="password" name="newPassword" required minlength="8" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-outline">Update password</button>
+    </form>
+  </div>`;
+
                                                                                                           const body = `
                                                                                                             <div style="display:flex;gap:56px;flex-wrap:wrap">
                                                                                                                 <div style="flex:0 0 190px;display:flex;flex-direction:column;gap:2px">
@@ -58,12 +78,37 @@ app.get("/settings", async (c) => {
                                                                                                                                                                                           </div>
                                                                                                                                                                                                 <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${list.length} vehicle${list.length === 1 ? "" : "s"} registered to your account</div>
                                                                                                                                                                                                       <div style="border:1px solid var(--hairline)">${rows}</div>
+${passwordSection}
                                                                                                                                                                                                           </div>
                                                                                                                                                                                                             </div>`;
                                                                                                                                                                                                             
                                                                                                                                                                                                               return c.html(appShell("Settings — Moto ID", "Settings / My Vehicles", body, user));
                                                                                                                                                                                                               });
                                                                                                                                                                                                               
+app.post("/settings/password", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.redirect("/login?next=/settings");
+  const { hashPassword, verifyPassword } = await import("./lib/crypto");
+  const { updateUserPassword } = await import("./lib/db");
+
+  const body = await c.req.parseBody();
+  const currentPassword = String(body.currentPassword ?? "");
+  const newPassword = String(body.newPassword ?? "");
+
+  const ok = await verifyPassword(currentPassword, user.password_hash);
+  if (!ok) {
+    return c.redirect(`/settings?pwerror=${encodeURIComponent("Current password is incorrect.")}`);
+  }
+  if (newPassword.length < 8) {
+    return c.redirect(`/settings?pwerror=${encodeURIComponent("New password needs at least 8 characters.")}`);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await updateUserPassword(c.env.DB, user.id, passwordHash);
+
+  return c.redirect("/settings?pwok=1");
+});
+
                                                                                                                                                                                                               app.notFound((c) => c.text("Not found", 404));
                                                                                                                                                                                                               
                                                                                                                                                                                                               export default app;
