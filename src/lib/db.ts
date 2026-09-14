@@ -19,6 +19,7 @@ export interface Vehicle {
     model: string;
     year: number | null;
     colour: string | null;
+    photo_r2_key: string | null;
     created_at: string;
 }
 
@@ -141,8 +142,13 @@ export async function createVehicle(
           model: input.model,
           year: input.year,
           colour: input.colour,
-          created_at: new Date().toISOString(),
+        photo_r2_key: null,
+        created_at: new Date().toISOString(),
     };
+}
+
+export async function setVehiclePhoto(db: D1Database, vehicleId: string, r2Key: string | null): Promise<void> {
+    await db.prepare("UPDATE vehicles SET photo_r2_key = ? WHERE id = ?").bind(r2Key, vehicleId).run();
 }
 
 export async function getVehiclesByUser(db: D1Database, userId: string): Promise<Vehicle[]> {
