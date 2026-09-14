@@ -68,6 +68,12 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .footer .col-title{font-size:10px;color:var(--ink-subtle);letter-spacing:0.1em;margin-bottom:14px}
 .footer .col-links{display:flex;flex-direction:column;gap:9px;font-size:12.5px;color:var(--ink-muted)}
 
+/* Photo upload */
+.photo-upload{position:relative;overflow:hidden;cursor:pointer}
+.photo-upload .photo-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:oklch(14% 0 0 / 0.55);color:var(--bg);font-size:10.5px;letter-spacing:0.06em;opacity:0;transition:opacity .15s;pointer-events:none;text-align:center;padding:0 10px}
+.photo-upload:hover .photo-overlay{opacity:1}
+.photo-upload input[type="file"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+
 /* Utility */
 .muted{color:var(--ink-muted)}
 .subtle{color:var(--ink-subtle)}
