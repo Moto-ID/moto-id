@@ -34,6 +34,7 @@ export interface Document {
     content_type: string | null;
     size_bytes: number | null;
     added_by: string | null;
+    is_public: number;
     created_at: string;
 }
 
@@ -175,15 +176,23 @@ export async function getVehicleByMotoIdNumber(db: D1Database, motoIdNumber: str
 export async function addDocument(
     db: D1Database,
     vehicleId: string,
-    input: { folder: Folder; filename: string; r2Key: string; contentType: string | null; sizeBytes: number | null; addedBy: string | null }
+    input: {
+          folder: Folder;
+          filename: string;
+          r2Key: string;
+          contentType: string | null;
+          sizeBytes: number | null;
+          addedBy: string | null;
+          isPublic: boolean;
+    }
   ): Promise<Document> {
     const id = newId();
     await db
           .prepare(
-            `INSERT INTO documents (id, vehicle_id, folder, filename, r2_key, content_type, size_bytes, added_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO documents (id, vehicle_id, folder, filename, r2_key, content_type, size_bytes, added_by, is_public)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
-          .bind(id, vehicleId, input.folder, input.filename, input.r2Key, input.contentType, input.sizeBytes, input.addedBy)
+          .bind(id, vehicleId, input.folder, input.filename, input.r2Key, input.contentType, input.sizeBytes, input.addedBy, input.isPublic ? 1 : 0)
           .run();
     return {
           id,
@@ -194,8 +203,34 @@ export async function addDocument(
           content_type: input.contentType,
           size_bytes: input.sizeBytes,
           added_by: input.addedBy,
+          is_public: input.isPublic ? 1 : 0,
           created_at: new Date().toISOString(),
     };
+}
+
+export async function setDocumentVisibility(db: D1Database, docId: string, isPublic: boolean): Promise<void> {
+    await db.prepare("UPDATE documents SET is_public = ? WHERE id = ?").bind(isPublic ? 1 : 0, docId).run();
+}
+
+export async function getDocumentById(db: D1Database, docId: string): Promise<Document | null> {
+    const row = await db.prepare("SELECT * FROM documents WHERE id = ?").bind(docId).first<Document>();
+    return row ?? null;
+}
+
+export async function listPublicDocuments(db: D1Database, vehicleId: string): Promise<Document[]> {
+    const { results } = await db
+          .prepare("SELECT * FROM documents WHERE vehicle_id = ? AND is_public = 1 ORDER BY created_at DESC")
+          .bind(vehicleId)
+          .all<Document>();
+    return results;
+}
+
+export async function getPublicDocument(db: D1Database, vehicleId: string, docId: string): Promise<Document | null> {
+    const row = await db
+          .prepare("SELECT * FROM documents WHERE id = ? AND vehicle_id = ? AND is_public = 1")
+          .bind(docId, vehicleId)
+          .first<Document>();
+    return row ?? null;
 }
 
 export async function listDocuments(db: D1Database, vehicleId: string, folder: Folder): Promise<Document[]> {
