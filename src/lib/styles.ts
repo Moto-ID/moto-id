@@ -80,6 +80,8 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .mono{font-family:var(--font-mono)}
 .eyebrow{font-size:10.5px;letter-spacing:0.2em;color:var(--ink-subtle)}
 .error{color:oklch(45% 0.18 25);font-size:13px;margin-bottom:20px}
+.breadcrumb a{color:inherit}
+.breadcrumb a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 `;
 
 export function pageHead(title: string): string {
