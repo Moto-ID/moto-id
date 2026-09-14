@@ -124,8 +124,8 @@ documents.get("/vehicles/:id/folder/:folder", async (c) => {
 
     const body = `
     <div style="max-width:1100px">
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;gap:16px;flex-wrap"wrap">
-        <div style="font-family:var(--font-display);font-size:26px">${FOLDER_LABEL[folder]}</div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;gap:16px;flex-wrap:wrap">
+                    <div style="font-family:var(--font-display);font-size:26px">${FOLDER_LABEL[folder]}</div>
       </div>
       <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${docs.length} file${docs.length === 1 ? "" : "s"}</div>
 
