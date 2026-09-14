@@ -25,6 +25,31 @@ export interface Vehicle {
 
 export type Folder = "service" | "invoice" | "photo";
 
+export interface User {
+    id: string;
+    name: string;
+    email: string;
+    password_hash: string;
+    created_at: string;
+}
+
+export interface Vehicle {
+    id: string;
+    user_id: string;
+    moto_id_number: string;
+    vehicle_type: "car" | "motorcycle";
+    registration_number: string;
+    vin: string;
+    make: string;
+    model: string;
+    year: number | null;
+    colour: string | null;
+    photo_r2_key: string | null;
+    created_at: string;
+}
+
+export type Folder = "service" | "invoice" | "photo";
+
 export interface Document {
     id: string;
     vehicle_id: string;
@@ -84,6 +109,43 @@ export async function getSessionUser(db: D1Database, token: string): Promise<Use
 
 export async function deleteSession(db: D1Database, token: string): Promise<void> {
     await db.prepare("DELETE FROM sessions WHERE id = ?").bind(token).run();
+}
+
+export async function updateUserPassword(db: D1Database, userId: string, passwordHash: string): Promise<void> {
+    await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passwordHash, userId).run();
+}
+
+const PASSWORD_RESET_TTL_MINUTES = 60;
+
+export interface PasswordReset {
+    token: string;
+    user_id: string;
+    expires_at: string;
+    used: number;
+    created_at: string;
+}
+
+export async function createPasswordResetToken(db: D1Database, userId: string, token: string): Promise<void> {
+    const expires = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000).toISOString();
+    await db
+          .prepare("INSERT INTO password_resets (token, user_id, expires_at) VALUES (?, ?, ?)")
+          .bind(token, userId, expires)
+          .run();
+}
+
+export async function getValidPasswordResetToken(db: D1Database, token: string): Promise<PasswordReset | null> {
+    const row = await db
+          .prepare(
+            `SELECT * FROM password_resets
+             WHERE token = ? AND used = 0 AND expires_at > datetime('now')`
+          )
+          .bind(token)
+          .first<PasswordReset>();
+    return row ?? null;
+}
+
+export async function markPasswordResetUsed(db: D1Database, token: string): Promise<void> {
+    await db.prepare("UPDATE password_resets SET used = 1 WHERE token = ?").bind(token).run();
 }
 
 export async function generateUniqueMotoIdNumber(db: D1Database): Promise<string> {
