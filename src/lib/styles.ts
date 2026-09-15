@@ -67,6 +67,8 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .footer .cols{display:flex;gap:56px}
 .footer .col-title{font-size:10px;color:var(--ink-subtle);letter-spacing:0.1em;margin-bottom:14px}
 .footer .col-links{display:flex;flex-direction:column;gap:9px;font-size:12.5px;color:var(--ink-muted)}
+.footer .col-links a{color:inherit}
+.footer .col-links a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 
 /* Photo upload */
 .photo-upload{position:relative;overflow:hidden;cursor:pointer}
