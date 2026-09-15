@@ -181,18 +181,11 @@ marketing.get("/", (c) => {
   const body = `
     <style>
       .m-btn-solid-inv:hover{background:oklch(88% 0 0)!important}
-      @media (max-width:900px){ .hero-video{display:none} }
     </style>
 
     <!-- HERO: full-bleed dark, overlaid type -->
     <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);min-height:660px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:56px">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(112deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)"></div>
-
-      <div class="hero-video" style="position:absolute;top:56px;right:56px;z-index:2;width:240px;border-radius:6px;overflow:hidden;border:1px solid oklch(30% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.7)">
-        <video autoplay muted loop playsinline poster="/media/laser-marking-poster.jpg" style="width:100%;display:block">
-          <source src="/media/laser-marking.mp4" type="video/mp4">
-        </video>
-      </div>
 
       <div style="position:relative;z-index:1">
         <div style="font-size:10.5px;letter-spacing:0.24em;color:oklch(74% 0 0);margin-bottom:26px">DIGITAL PROVENANCE FOR EXCEPTIONAL CARS &amp; MOTORCYCLES</div>
