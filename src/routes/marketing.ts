@@ -400,7 +400,7 @@ marketing.get("/about", (c) => {
       <p>It's a one-time purchase, not a subscription. You pay for the plate and the marks; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
     </div>
   `;
-  return c.html(marketingShell("About — Moto ID", body, { activeNav: "" }));
+  return c.html(marketingShell("About — Moto ID", body, { activeNav: "about" }));
 });
 
 marketing.get("/contact", (c) => {
@@ -413,7 +413,7 @@ marketing.get("/contact", (c) => {
       <p style="margin-top:36px;font-size:12.5px;color:var(--ink-subtle)">Fitting Moto ID kits across multiple vehicles as a restorer, dealer or club? Mention it in your message &mdash; trade pricing is on the <a href="/pricing">Pricing</a> page.</p>
     </div>
   `;
-  return c.html(marketingShell("Contact — Moto ID", body, { activeNav: "" }));
+  return c.html(marketingShell("Contact — Moto ID", body, { activeNav: "contact" }));
 });
 
 marketing.get("/privacy", (c) => {
