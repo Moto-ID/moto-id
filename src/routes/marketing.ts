@@ -390,7 +390,7 @@ marketing.get("/about", (c) => {
   const body = `
     ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
 
-    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14.5px;color:var(--ink-muted);line-height:1.8">
+    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
       <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate and a set of tamper-evident stickers, both carrying the same unique number, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration and VIN, service documents, invoices and photographs. Anyone can scan the plate or a sticker to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
 
       <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
@@ -407,7 +407,7 @@ marketing.get("/contact", (c) => {
   const body = `
     ${PAGE_HEADER("CONTACT", "Get in touch.")}
 
-    <div style="max-width:520px;margin:0 auto 110px;padding:0 56px;text-align:center;font-size:14.5px;color:var(--ink-muted);line-height:1.8">
+    <div style="max-width:520px;margin:0 auto 110px;padding:0 56px;text-align:center;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;align-items:center;gap:4px">
       <p>Questions about a kit, an existing account, or a trade or partnership enquiry &mdash; we read everything sent here and reply as quickly as we can.</p>
       <a href="mailto:hello@digitalvehicleid.com" style="display:inline-block;margin-top:18px;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px 30px;cursor:pointer">hello@digitalvehicleid.com</a>
       <p style="margin-top:36px;font-size:12.5px;color:var(--ink-subtle)">Fitting Moto ID kits across multiple vehicles as a restorer, dealer or club? Mention it in your message &mdash; trade pricing is on the <a href="/pricing">Pricing</a> page.</p>
@@ -425,7 +425,7 @@ marketing.get("/privacy", (c) => {
     ${PAGE_HEADER("LEGAL", "Privacy Policy")}
 
     <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
-      <p style="color:var(--ink-subtle);font-size:12.5px">Last updated 15 September 2026.</p>
+      <p style="color:var(--ink-subtle);font-size:12.5px;margin-bottom:20px">Last updated 15 September 2026.</p>
 
       <p>This policy explains what personal data Moto ID collects when you create an account or use the public verification page, why we collect it, and what rights you have over it. Moto ID is based in the UK and handles personal data under UK GDPR and the Data Protection Act 2018.</p>
 
@@ -458,7 +458,7 @@ marketing.get("/terms", (c) => {
     ${PAGE_HEADER("LEGAL", "Terms of Service")}
 
     <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
-      <p style="color:var(--ink-subtle);font-size:12.5px">Last updated 15 September 2026.</p>
+      <p style="color:var(--ink-subtle);font-size:12.5px;margin-bottom:20px">Last updated 15 September 2026.</p>
 
       <p>These terms cover the Moto ID kit (an engraved plate and tamper-evident stickers) and the free account and public verification page that go with it. By buying a kit or creating an account, you agree to them.</p>
 
