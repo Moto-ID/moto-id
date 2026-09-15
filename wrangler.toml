@@ -12,6 +12,13 @@ database_id = "428f12a8-10a5-4bac-b0d9-04e3b8ae7fdb"
 binding = "DOCS"
 bucket_name = "moto-id-documents"
 
+# Static marketing assets (photos, video) served directly by Cloudflare from
+# the public/ directory — e.g. public/media/plate-photo.jpg is served at
+# /media/plate-photo.jpg. Not used for user-uploaded documents (those stay in
+# R2 above); this is only for files committed to the repo.
+[assets]
+directory = "./public"
+
 [vars]
 # Non-secret sender identity for transactional email (Resend). The actual
 # RESEND_API_KEY secret is set separately via `wrangler secret put RESEND_API_KEY`
