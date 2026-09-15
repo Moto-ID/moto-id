@@ -219,11 +219,7 @@ marketing.get("/", (c) => {
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1" class="two-col">
         <div style="display:flex;justify-content:center">
-          <div style="width:250px;height:162px;background:var(--bg);border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
-            <div style="font-size:9.5px;letter-spacing:0.2em;color:var(--ink-subtle)">MOTO&nbsp;ID</div>
-            <div style="color:var(--ink)">${MOTO_MARK_SVG(58)}</div>
-            <div style="font-family:var(--font-mono);font-size:11.5px;letter-spacing:0.02em">No.&nbsp;084213</div>
-          </div>
+          <img src="/media/plate-photo.jpg" alt="An engraved Moto ID stainless steel plate, laser-marked with the vehicle name, registration and Moto ID number" style="width:100%;max-width:340px;height:auto;border-radius:6px;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg)">
         </div>
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
@@ -237,6 +233,21 @@ marketing.get("/", (c) => {
               <span style="font-weight:600;font-size:13.5px;color:oklch(97% 0 0)">For motorcycles &mdash; </span><span style="font-size:13.5px;color:oklch(74% 0 0)">fixed wherever suits the build: tank, tail or under the seat.</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Real laser-marking footage -->
+      <div style="max-width:900px;margin:90px auto 0;position:relative;z-index:1;border-top:1px solid oklch(24% 0 0);padding-top:64px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center" class="two-col">
+        <div>
+          <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">HOW IT'S MARKED</div>
+          <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:28px;line-height:1.3;margin-bottom:20px">Laser-annealed, not printed.</div>
+          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px">Every plate and sticker is marked on our own laser, tuned to anneal the stainless steel's surface rather than just etch or print it. Annealing changes the metal's own oxide layer instead of cutting through or coating it, so the mark won't fade, flake or rust &mdash; it's part of the steel for the life of the vehicle.</div>
+        </div>
+        <div>
+          <video controls preload="none" poster="/media/laser-marking-poster.jpg" playsinline style="width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
+            <source src="/media/laser-marking.mp4" type="video/mp4">
+          </video>
+          <div style="font-size:11px;color:oklch(52% 0 0);margin-top:10px;text-align:center">Real footage &mdash; one of our plates being marked.</div>
         </div>
       </div>
     </div>
