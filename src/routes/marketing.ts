@@ -200,7 +200,6 @@ marketing.get("/", (c) => {
             <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
           </div>
         </div>
-        <div style="text-align:right;font-size:10.5px;letter-spacing:0.08em;color:oklch(52% 0 0);white-space:nowrap;padding-bottom:6px">LOT&nbsp;084213<br>PORSCHE&nbsp;911,&nbsp;1988</div>
       </div>
     </div>
 
