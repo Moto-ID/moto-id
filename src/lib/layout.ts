@@ -12,7 +12,7 @@ export function marketingShell(title: string, body: string, opts?: { activeNav?:
           <head>${pageHead(title)}</head>
           <body>
             <div class="nav">
-                <div class="wordmark">MOTO ID</div>
+                <a href="/" class="wordmark">MOTO ID</a>
                     <div class="links">
                           ${navLink("/#how-it-works", "HOW IT WORKS", "how")}
                                 ${navLink("/#the-mark", "THE MARK", "mark")}
