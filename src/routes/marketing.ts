@@ -377,3 +377,107 @@ marketing.get("/pricing", (c) => {
   `;
   return c.html(marketingShell("Pricing — Moto ID", body, { activeNav: "pricing" }));
 });
+
+// Shared header block used by the simple content pages below (About, Contact, Privacy, Terms).
+const PAGE_HEADER = (eyebrow: string, headline: string) => `
+  <div style="padding:80px 56px 56px;text-align:center">
+    <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--ink-subtle);margin-bottom:22px">${eyebrow}</div>
+    <div style="font-family:var(--font-display);font-size:min(38px,8vw);line-height:1.3;max-width:680px;margin:0 auto">${headline}</div>
+  </div>
+`;
+
+marketing.get("/about", (c) => {
+  const body = `
+    ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
+
+    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14.5px;color:var(--ink-muted);line-height:1.8">
+      <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate and a set of tamper-evident stickers, both carrying the same unique number, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration and VIN, service documents, invoices and photographs. Anyone can scan the plate or a sticker to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
+
+      <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
+
+      <p>Moto ID doesn't solve that by asking anyone to trust us instead. The plate and stickers make the identity hard to quietly move to a different vehicle; the record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
+
+      <p>It's a one-time purchase, not a subscription. You pay for the plate and the marks; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+    </div>
+  `;
+  return c.html(marketingShell("About — Moto ID", body, { activeNav: "" }));
+});
+
+marketing.get("/contact", (c) => {
+  const body = `
+    ${PAGE_HEADER("CONTACT", "Get in touch.")}
+
+    <div style="max-width:520px;margin:0 auto 110px;padding:0 56px;text-align:center;font-size:14.5px;color:var(--ink-muted);line-height:1.8">
+      <p>Questions about a kit, an existing account, or a trade or partnership enquiry &mdash; we read everything sent here and reply as quickly as we can.</p>
+      <a href="mailto:hello@digitalvehicleid.com" style="display:inline-block;margin-top:18px;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px 30px;cursor:pointer">hello@digitalvehicleid.com</a>
+      <p style="margin-top:36px;font-size:12.5px;color:var(--ink-subtle)">Fitting Moto ID kits across multiple vehicles as a restorer, dealer or club? Mention it in your message &mdash; trade pricing is on the <a href="/pricing">Pricing</a> page.</p>
+    </div>
+  `;
+  return c.html(marketingShell("Contact — Moto ID", body, { activeNav: "" }));
+});
+
+marketing.get("/privacy", (c) => {
+  const s = (title: string, html: string) => `
+    <div style="font-family:var(--font-display);font-size:18px;margin:40px 0 12px">${title}</div>
+    <p>${html}</p>
+  `;
+  const body = `
+    ${PAGE_HEADER("LEGAL", "Privacy Policy")}
+
+    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
+      <p style="color:var(--ink-subtle);font-size:12.5px">Last updated 15 September 2026.</p>
+
+      <p>This policy explains what personal data Moto ID collects when you create an account or use the public verification page, why we collect it, and what rights you have over it. Moto ID is based in the UK and handles personal data under UK GDPR and the Data Protection Act 2018.</p>
+
+      ${s("What we collect", "Account data: your name, email address and a securely hashed password. Vehicle data: registration number, VIN, make, model and year for each vehicle you register. Anything you choose to upload to a vehicle's Service Documents, Invoices or Photos folders. Verification activity: the date and approximate volume of scans against a vehicle's public page (we don't identify who scanned it).")}
+
+      ${s("Why we collect it", "To create and run your account, generate each vehicle's public verification page, store the documents and photos you upload, and respond if you contact us. We don't use your data for advertising, and we don't sell it to anyone.")}
+
+      ${s("What's public", "The public page reached by scanning a plate or sticker shows only vehicle-level facts &mdash; make, model, how long it's been registered, how many records exist &mdash; plus any specific document or photo you've explicitly marked public in a folder view. It never shows your name, email or any other personal detail, and anything you haven't marked public stays private by default.")}
+
+      ${s("Cookies", "We use a single session cookie to keep you signed in. We don't use third-party analytics or advertising cookies.")}
+
+      ${s("How long we keep it", "For as long as your account is active. If you'd like your account and its data deleted, contact us and we'll action it, subject to anything we're required to keep for legal or accounting reasons.")}
+
+      ${s("Your rights", "Under UK GDPR you can ask us to give you a copy of your data, correct it, delete it, or move it elsewhere, and you can object to how we use it. Contact us to exercise any of these, and if you're unhappy with our response you can complain to the <a href=\"https://ico.org.uk\">Information Commissioner's Office</a>.")}
+
+      ${s("Changes to this policy", "If we make a material change, we'll update the date at the top of this page.")}
+
+      ${s("Contact", "Questions about this policy or your data: <a href=\"mailto:hello@digitalvehicleid.com\">hello@digitalvehicleid.com</a>.")}
+    </div>
+  `;
+  return c.html(marketingShell("Privacy Policy — Moto ID", body, { activeNav: "" }));
+});
+
+marketing.get("/terms", (c) => {
+  const s = (title: string, html: string) => `
+    <div style="font-family:var(--font-display);font-size:18px;margin:40px 0 12px">${title}</div>
+    <p>${html}</p>
+  `;
+  const body = `
+    ${PAGE_HEADER("LEGAL", "Terms of Service")}
+
+    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
+      <p style="color:var(--ink-subtle);font-size:12.5px">Last updated 15 September 2026.</p>
+
+      <p>These terms cover the Moto ID kit (an engraved plate and tamper-evident stickers) and the free account and public verification page that go with it. By buying a kit or creating an account, you agree to them.</p>
+
+      ${s("What Moto ID is", "The kit is a one-time purchase, not a subscription &mdash; current prices are on the <a href=\"/pricing\">Pricing</a> page. The account, its document folders and the public verification page are free for as long as you own the vehicle.")}
+
+      ${s("What \"verified\" means", "Moto ID verifies that a specific physical mark is genuine and hasn't been reissued to a different vehicle, and that the documents in a vehicle's record were uploaded by the account holder on the dates shown. Moto ID cannot verify that an uploaded document is itself genuine, and does not guarantee a vehicle's condition, mileage or history beyond what it can actually check. Anyone relying on a Moto ID record when buying or insuring a vehicle should treat it as one part of their own due diligence, not a substitute for it.")}
+
+      ${s("Your account and content", "You're responsible for the accuracy of what you enter and upload. Don't upload anything unlawful, infringing, or that isn't genuinely related to the vehicle. We may remove content or suspend an account that breaches these terms.")}
+
+      ${s("Selling the vehicle", "A vehicle's record transfers to its new owner free of charge when it's sold. Contact us to arrange a transfer.")}
+
+      ${s("Liability", "Nothing in these terms limits liability for death, personal injury or fraud caused by our negligence. Beyond that, to the extent permitted by law, Moto ID isn't liable for indirect or consequential losses, and our total liability in connection with a kit is capped at the amount you paid for it.")}
+
+      ${s("Governing law", "These terms are governed by the law of England and Wales.")}
+
+      ${s("Changes to these terms", "If we make a material change, we'll update the date at the top of this page.")}
+
+      ${s("Contact", "Questions about these terms: <a href=\"mailto:hello@digitalvehicleid.com\">hello@digitalvehicleid.com</a>.")}
+    </div>
+  `;
+  return c.html(marketingShell("Terms of Service — Moto ID", body, { activeNav: "" }));
+});
