@@ -31,7 +31,7 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 /* Nav */
 .nav{display:flex;align-items:center;justify-content:space-between;padding:26px 56px;border-bottom:1px solid var(--hairline)}
 .nav .wordmark{font-weight:600;font-size:12px;letter-spacing:0.2em}
-.nav .links{display:flex;align-items:center;gap:40px}
+.nav .links{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 .nav .links a{font-size:11.5px;letter-spacing:0.06em;color:var(--ink-muted)}
 .nav .links a:hover, .nav .links a.active{color:var(--ink)}
 .nav .right{display:flex;align-items:center;gap:28px}

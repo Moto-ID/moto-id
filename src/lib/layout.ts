@@ -18,6 +18,8 @@ export function marketingShell(title: string, body: string, opts?: { activeNav?:
                                 ${navLink("/#the-mark", "THE MARK", "mark")}
                                       ${navLink("/verify", "VERIFY A VEHICLE", "verify")}
                                             ${navLink("/pricing", "PRICING", "pricing")}
+                                                  ${navLink("/about", "ABOUT", "about")}
+                                                        ${navLink("/contact", "CONTACT", "contact")}
                                                 </div>
                                                     <div class="right">
                                                           <a href="/login">SIGN IN</a>
