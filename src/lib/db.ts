@@ -5,31 +5,11 @@ export interface User {
     name: string;
     email: string;
     password_hash: string;
-    created_at: string;
-}
-
-export interface Vehicle {
-    id: string;
-    user_id: string;
-    moto_id_number: string;
-    vehicle_type: "car" | "motorcycle";
-    registration_number: string;
-    vin: string;
-    make: string;
-    model: string;
-    year: number | null;
-    colour: string | null;
-    photo_r2_key: string | null;
-    created_at: string;
-}
-
-export type Folder = "service" | "invoice" | "photo";
-
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    password_hash: string;
+    // Number of vehicle registrations this user is entitled to create. Signing
+    // up is free and grants access to "My Collection"; each credit (granted by
+    // a completed Stripe purchase — see grantCreditForCheckoutSession below) is
+    // consumed by registering one vehicle. See migrations/0005_vehicle_credits.sql.
+    vehicle_credits: number;
     created_at: string;
 }
 
@@ -71,7 +51,7 @@ export async function createUser(db: D1Database, name: string, email: string, pa
           .prepare("INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)")
           .bind(id, name, email.toLowerCase().trim(), passwordHash)
           .run();
-    return { id, name, email, password_hash: passwordHash, created_at: new Date().toISOString() };
+    return { id, name, email, password_hash: passwordHash, vehicle_credits: 0, created_at: new Date().toISOString() };
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {
@@ -334,4 +314,66 @@ export async function lastScan(db: D1Database, vehicleId: string): Promise<strin
           .bind(vehicleId)
           .first<{ scanned_at: string }>();
     return row?.scanned_at ?? null;
+}
+
+// --- Vehicle credits / payments -------------------------------------------
+//
+// Signing up is free ("My Collection" is accessible with zero credits).
+// Registering a vehicle (getting an actual Moto ID) consumes one credit.
+// Credits are granted by a completed Stripe purchase — see src/lib/stripe.ts
+// and src/routes/billing.ts for the checkout + webhook flow.
+
+export interface Purchase {
+    id: string; // Stripe Checkout Session id
+    user_id: string;
+    amount_pence: number;
+    currency: string;
+    status: string;
+    created_at: string;
+}
+
+export async function addUserCredits(db: D1Database, userId: string, amount: number): Promise<void> {
+    await db.prepare("UPDATE users SET vehicle_credits = vehicle_credits + ? WHERE id = ?").bind(amount, userId).run();
+}
+
+/**
+ * Atomically consumes one vehicle credit for a user, if they have one.
+ * Returns true if a credit was consumed, false if they had none (the caller
+ * should treat false as "not entitled to register a vehicle right now").
+ */
+export async function consumeUserCredit(db: D1Database, userId: string): Promise<boolean> {
+    const result = await db
+          .prepare("UPDATE users SET vehicle_credits = vehicle_credits - 1 WHERE id = ? AND vehicle_credits > 0")
+          .bind(userId)
+          .run();
+    return (result.meta.changes ?? 0) > 0;
+}
+
+/**
+ * Records a completed Stripe Checkout Session and grants one vehicle credit —
+ * idempotently, keyed on the session id, so it's safe to call this more than
+ * once for the same session (e.g. once from the /webhooks/stripe handler and
+ * once from the /buy/success page's own confirmation check). Returns true
+ * only the first time (i.e. when a credit was actually granted just now).
+ */
+export async function grantCreditForCheckoutSession(
+    db: D1Database,
+    sessionId: string,
+    userId: string,
+    amountPence: number,
+    currency: string
+): Promise<boolean> {
+    const result = await db
+          .prepare(
+                `INSERT INTO purchases (id, user_id, amount_pence, currency, status)
+                 VALUES (?, ?, ?, ?, 'paid')
+                 ON CONFLICT(id) DO NOTHING`
+          )
+          .bind(sessionId, userId, amountPence, currency)
+          .run();
+    const grantedNow = (result.meta.changes ?? 0) > 0;
+    if (grantedNow) {
+        await addUserCredits(db, userId, 1);
+    }
+    return grantedNow;
 }
