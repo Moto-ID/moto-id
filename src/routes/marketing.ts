@@ -178,6 +178,10 @@ const DEMO_REEL_SECTION = `
 `;
 
 marketing.get("/", (c) => {
+  // Signed-in visitors go straight to checkout; signed-out visitors sign up
+  // first (a free account) and land on "My Collection", where the same
+  // purchase prompt is waiting for them.
+  const ctaHref = c.get("user") ? "/buy" : "/signup";
   const body = `
     <style>
       .m-btn-solid-inv:hover{background:oklch(88% 0 0)!important}
@@ -196,7 +200,7 @@ marketing.get("/", (c) => {
         <div>
           <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Held to the same standard as the vehicle it belongs to &mdash; engraved, tamper-evident, and yours to prove, at any time.</div>
           <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
-            <a href="/signup" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Request a plate</a>
+            <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Request a plate</a>
             <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
           </div>
         </div>
@@ -303,7 +307,7 @@ marketing.get("/", (c) => {
     <!-- CTA: full-bleed dark -->
     <div style="background:oklch(11% 0 0);padding:110px 56px;text-align:center">
       <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-style:italic;font-size:min(34px,7vw);max-width:520px;margin:0 auto 34px">Give your build a provenance worthy of it.</div>
-      <a href="/signup" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Request a plate &mdash; from &pound;29</a>
+      <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Request a plate &mdash; from &pound;29</a>
     </div>
 
     <style>
@@ -314,6 +318,7 @@ marketing.get("/", (c) => {
 });
 
 marketing.get("/pricing", (c) => {
+  const ctaHref = c.get("user") ? "/buy" : "/signup";
   const body = `
     <!-- HEADER -->
     <div style="padding:80px 56px 56px;text-align:center">
@@ -335,7 +340,7 @@ marketing.get("/pricing", (c) => {
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Public verification page</div>
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Record kept for the life of the vehicle</div>
         </div>
-        <a href="/signup" style="display:block;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Request a plate</a>
+        <a href="${ctaHref}" style="display:block;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Request a plate</a>
       </div>
 
       <div style="padding:48px 44px">
@@ -347,7 +352,7 @@ marketing.get("/pricing", (c) => {
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Managed under one account</div>
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Same standard of engraving &amp; marking</div>
         </div>
-        <a href="/signup" style="display:block;border:1px solid var(--ink);color:var(--ink);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Add a vehicle</a>
+        <a href="${ctaHref}" style="display:block;border:1px solid var(--ink);color:var(--ink);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Add a vehicle</a>
       </div>
     </div>
 

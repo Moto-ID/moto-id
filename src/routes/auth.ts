@@ -86,7 +86,10 @@ auth.post("/signup", async (c) => {
     await createSession(c.env.DB, user.id, token);
     setSessionCookie(c, token);
 
-    return c.redirect("/register-vehicle");
+    // Signing up is free — /dashboard shows "My Collection" and, since a new
+    // account has no vehicle credits yet, prompts them to get a Moto ID
+    // before they can register a vehicle (see routes/vehicles.ts + billing.ts).
+    return c.redirect("/dashboard");
   });
 
 function loginForm(opts: { email?: string; error?: string; next?: string; notice?: string }) {

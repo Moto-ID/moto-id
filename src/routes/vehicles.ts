@@ -10,6 +10,7 @@ import {
     countDocumentsByFolder,
     recentActivity,
     setVehiclePhoto,
+    consumeUserCredit,
     type Vehicle,
 } from "../lib/db";
 
@@ -82,11 +83,14 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                         }
 
                                                                                         vehicles.get("/register-vehicle", (c) => {
+                                                                                          const user = c.get("user")!;
+                                                                                          if (user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({})));
                                                                                         });
 
                                                                                         vehicles.post("/register-vehicle", async (c) => {
                                                                                           const user = c.get("user")!;
+                                                                                          if (user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           const body = await c.req.parseBody();
                                                                                             const vehicleType = body.vehicleType === "motorcycle" ? "motorcycle" : "car";
                                                                                           const registrationNumber = String(body.registrationNumber ?? "").trim();
@@ -110,6 +114,13 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                             );
                                                                                           }
 
+                                                                                            const creditConsumed = await consumeUserCredit(c.env.DB, user.id);
+                                                                                            if (!creditConsumed) {
+                                                                                              // Credit was used up between the form loading and this submit (e.g. two
+                                                                                              // tabs, or a race with another purchase) — send them to buy another.
+                                                                                              return c.redirect("/buy");
+                                                                                            }
+
                                                                                             const vehicle = await createVehicle(c.env.DB, user.id, {
                                                                                                   vehicleType,
                                                                                                   registrationNumber,
@@ -123,11 +134,24 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                           return c.redirect(`/vehicles/${vehicle.id}`);
                                                                                         });
 
+// The free "My Collection" empty state — shown to any signed-in user with no
+// vehicles yet and no unused Moto ID credit. Signing up is always free; this
+// is the wall before registering an actual vehicle, which needs a credit.
+function myCollectionEmptyState(): string {
+  return `
+    <div style="max-width:480px;margin:70px auto;text-align:center">
+      <div style="font-family:var(--font-display);font-size:26px;margin-bottom:14px">My Collection is empty.</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:32px">Your account is free to keep, for as long as you like. To register a vehicle and get an actual Moto ID, you'll need a Moto ID Kit &mdash; an engraved plate and tamper-evident stickers, which come with the digital record and public verification page you'll build on here.</div>
+      <a href="/buy" class="btn btn-solid" style="display:inline-block;border:none;padding:15px 34px">Get a Moto ID &mdash; from &pound;29</a>
+    </div>`;
+}
+
                                                                                         vehicles.get("/dashboard", async (c) => {
                                                                                           const user = c.get("user")!;
                                                                                           const list = await getVehiclesByUser(c.env.DB, user.id);
-                                                                                          if (list.length === 0) return c.redirect("/register-vehicle");
-                                                                                          return c.redirect(`/vehicles/${list[0].id}`);
+                                                                                          if (list.length > 0) return c.redirect(`/vehicles/${list[0].id}`);
+                                                                                          if (user.vehicle_credits > 0) return c.redirect("/register-vehicle");
+                                                                                          return c.html(appShell("My Collection — Moto ID", "My Collection", myCollectionEmptyState(), user));
                                                                                         });
 
 function photoBox(vehicle: Vehicle, icon: string, uploadEnabled: boolean): string {
