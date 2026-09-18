@@ -218,7 +218,11 @@ marketing.get("/", (c) => {
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1" class="two-col">
         <div style="display:flex;justify-content:center">
-          <img src="/media/plate-photo.jpg" alt="An engraved Moto ID stainless steel plate, laser-marked with the vehicle name, registration and Moto ID number" style="width:100%;max-width:340px;height:auto;border-radius:6px;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg)">
+          <div style="width:250px;height:162px;background:var(--bg);border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+            <div style="font-size:9.5px;letter-spacing:0.2em;color:var(--ink-subtle)">MOTO&nbsp;ID</div>
+            <div style="color:var(--ink)">${MOTO_MARK_SVG(58)}</div>
+            <div style="font-family:var(--font-mono);font-size:11.5px;letter-spacing:0.02em">No.&nbsp;084213</div>
+          </div>
         </div>
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
