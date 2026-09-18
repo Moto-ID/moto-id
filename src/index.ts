@@ -6,6 +6,7 @@ import { auth } from "./routes/auth";
 import { vehicles } from "./routes/vehicles";
 import { documents } from "./routes/documents";
 import { verify } from "./routes/verify";
+import { billing } from "./routes/billing";
 
 const app = new Hono<Env>();
 
@@ -16,6 +17,7 @@ app.route("/", auth);
 app.route("/", vehicles);
 app.route("/", documents);
 app.route("/", verify);
+app.route("/", billing);
 
 app.get("/settings", async (c) => {
   const user = c.get("user");

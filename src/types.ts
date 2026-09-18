@@ -11,6 +11,10 @@ export interface Bindings {
   RESEND_FROM_EMAIL?: string;
   // Non-secret public site origin, used to build links in emails (e.g. password reset links).
   PUBLIC_ORIGIN?: string;
+  // Set via `wrangler secret put STRIPE_SECRET_KEY` (or the Cloudflare dashboard) — never committed to the repo.
+  STRIPE_SECRET_KEY?: string;
+  // Set via `wrangler secret put STRIPE_WEBHOOK_SECRET` — the signing secret for the /webhooks/stripe endpoint.
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 export interface Variables {
