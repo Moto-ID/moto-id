@@ -13,10 +13,15 @@ export const BASE_CSS = `
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);line-height:1.6}
 a{color:var(--ink);text-decoration:none}
 h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
 p{margin:0}
+/* Anchor targets on the marketing homepage sit under the sticky nav, so
+   jumping to one (via smooth-scroll or a direct #hash link) needs this
+   offset or the nav would cover the top of the section. */
+[id]{scroll-margin-top:88px}
 input,select{
   width:100%;font-family:var(--font-body);font-size:14.5px;color:var(--ink);
   border:none;border-bottom:1px solid var(--hairline-strong);background:transparent;
@@ -28,14 +33,30 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .container{max-width:1200px;margin:0 auto;padding:0 56px}
 @media (max-width:720px){.container{padding:0 20px}}
 
-/* Nav */
-.nav{display:flex;align-items:center;justify-content:space-between;padding:26px 56px;border-bottom:1px solid var(--hairline)}
+/* Nav — sticky, so it stays visible while scrolling a long homepage */
+.nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:22px 56px;border-bottom:1px solid var(--hairline);background:var(--bg);transition:box-shadow 0.2s ease}
+.nav.is-scrolled{box-shadow:0 8px 24px -20px rgba(0,0,0,0.35)}
 .nav .wordmark{font-weight:600;font-size:12px;letter-spacing:0.2em}
-.nav .links{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
-.nav .links a{font-size:11.5px;letter-spacing:0.06em;color:var(--ink-muted)}
+.nav .links{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.nav .links a{font-size:11px;letter-spacing:0.05em;color:var(--ink-muted);white-space:nowrap}
 .nav .links a:hover, .nav .links a.active{color:var(--ink)}
-.nav .right{display:flex;align-items:center;gap:28px}
-@media (max-width:900px){.nav{padding:20px}.nav .links{display:none}}
+.nav .right{display:flex;align-items:center;gap:24px}
+.nav-toggle{display:none;background:none;border:none;padding:6px;margin:-6px;color:var(--ink);cursor:pointer}
+
+/* Mobile nav: hamburger toggle + dropdown panel, since links/right are
+   hidden below 900px and previously had no fallback at all. */
+.nav-mobile{display:none;flex-direction:column;position:sticky;top:65px;z-index:199;background:var(--bg);border-bottom:1px solid var(--hairline);padding:4px 20px 18px;max-height:calc(100vh - 65px);overflow-y:auto}
+.nav-mobile.is-open{display:flex}
+.nav-mobile a{padding:13px 0;font-size:12.5px;letter-spacing:0.04em;color:var(--ink-muted);border-top:1px solid var(--hairline)}
+.nav-mobile a:first-child{border-top:none}
+.nav-mobile a:hover, .nav-mobile a.active{color:var(--ink)}
+.nav-mobile .mobile-cta{display:flex;align-items:center;gap:22px;margin-top:8px;padding-top:16px;border-top:1px solid var(--hairline)}
+@media (max-width:900px){
+  .nav{padding:18px 20px}
+  .nav .links{display:none}
+  .nav .right{display:none}
+  .nav-toggle{display:flex;align-items:center;justify-content:center}
+}
 
 /* Buttons */
 .btn{display:inline-block;font-size:13px;letter-spacing:0.03em;padding:15px 26px;cursor:pointer;border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:var(--font-body)}
