@@ -47,6 +47,13 @@ export async function createCheckoutSession(
   params.set("line_items[0][price_data][product_data][name]", opts.productName);
   params.set("line_items[0][price_data][product_data][description]", opts.productDescription);
   params.set("shipping_address_collection[allowed_countries][0]", "GB");
+  // New Stripe accounts default to "Managed Payments", which is incompatible
+  // with the classic shipping_address_collection param used above (Stripe
+  // rejects the session with a 400 otherwise). We still need to collect a
+  // postal address here (it's the only place the app collects one, for
+  // posting the physical Moto ID Kit), so disable Managed Payments for this
+  // session rather than dropping address collection.
+  params.set("managed_payments[enabled]", "false");
 
   const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
     method: "POST",
