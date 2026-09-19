@@ -56,10 +56,9 @@ marketing.get("/", (c) => {
     <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);min-height:660px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:56px">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(112deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)"></div>
 
-      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start">
+      <div style="position:relative;z-index:1">
         <div style="font-size:10.5px;letter-spacing:0.24em;color:oklch(74% 0 0);margin-bottom:26px">DIGITAL PROVENANCE FOR EXCEPTIONAL CARS &amp; MOTORCYCLES</div>
         <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:min(104px, 11.5vw);line-height:0.88;letter-spacing:-0.01em">Provenance<span style="color:oklch(52% 0 0)">.</span></div>
-        <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" class="hero-plate-img" style="width:340px;max-width:80vw;display:block;margin-top:28px;border:1px solid oklch(30% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
       </div>
 
       <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:48px;flex-wrap:wrap">
@@ -88,11 +87,7 @@ marketing.get("/", (c) => {
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1" class="two-col">
         <div style="display:flex;justify-content:center">
-          <div style="width:250px;height:162px;background:var(--bg);border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
-            <div style="font-size:9.5px;letter-spacing:0.2em;color:var(--ink-subtle)">MOTO&nbsp;ID</div>
-            <div style="color:var(--ink)">${MOTO_MARK_SVG(58)}</div>
-            <div style="font-family:var(--font-mono);font-size:11.5px;letter-spacing:0.02em">No.&nbsp;084213</div>
-          </div>
+          <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" style="width:380px;max-width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg)">
         </div>
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
@@ -193,7 +188,6 @@ marketing.get("/", (c) => {
 
     <style>
       @media (max-width:820px){ .two-col{grid-template-columns:1fr!important} .three-col{grid-template-columns:1fr!important} .three-col > div{border-right:none!important;border-bottom:1px solid var(--hairline);padding:0 0 24px!important} .three-col > div:last-child{border-bottom:none} }
-      @media (max-width:640px){ .hero-plate-img{width:100%!important;max-width:100%!important} }
     </style>
   `;
   return c.html(marketingShell("Moto ID — Digital provenance for exceptional vehicles", body, { activeNav: "" }));
