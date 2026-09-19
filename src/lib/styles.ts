@@ -91,7 +91,26 @@ export function pageHead(title: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital@0;1&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap">
-<style>${BASE_CSS}</style>`;
+<style>${BASE_CSS}</style>
+<!-- Installable web app (PWA): lets visitors add Moto ID to their phone's
+     home screen and open it full-screen, like a downloaded app. See
+     public/manifest.webmanifest and public/service-worker.js. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#fcfcfc">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/media/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/media/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/media/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Moto ID">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/service-worker.js').catch(function () {});
+    });
+  }
+</script>`;
 }
 
 
