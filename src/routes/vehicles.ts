@@ -16,7 +16,15 @@ import {
 
 export const vehicles = new Hono<Env>();
 
-vehicles.use("*", requireAuth);
+// requireAuth is applied per-route below (not via a blanket vehicles.use("*", ...))
+// because Hono mounts every route file at the same base path ("/" in
+// index.ts) — a wildcard "*" middleware registered here ends up matching
+// every path in the whole app, not just this file's own routes. That
+// silently broke the public /verify/:motoIdNumber page (no login required by
+// design — it's what a QR-code scan lands on) once this line was added,
+// redirecting every visitor, including anonymous ones, to /login. Found
+// 2026-09-19 while investigating why a restored vehicle's public record
+// wasn't showing.
 
 const CAR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink-subtle)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" width="50" height="50"><path d="M3.5 16 5 10.5c.4-1.3 1.6-2 3-2h8c1.4 0 2.6.7 3 2L21 16"/><rect x="2.5" y="16" width="19" height="4" rx="1.4"/><circle cx="7" cy="20" r="1.6" fill="var(--ink-subtle)" stroke="none"/><circle cx="17" cy="20" r="1.6" fill="var(--ink-subtle)" stroke="none"/></svg>`;
 const BIKE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink-subtle)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17 10 10h4l2 3h3"/><path d="M10 10 8.5 7h3"/><line x1="14" y1="13" x2="18" y2="17"/></svg>`;
@@ -82,13 +90,13 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                           </div>`;
                                                                                         }
 
-                                                                                        vehicles.get("/register-vehicle", (c) => {
+                                                                                        vehicles.get("/register-vehicle", requireAuth, (c) => {
                                                                                           const user = c.get("user")!;
                                                                                           if (user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({})));
                                                                                         });
 
-                                                                                        vehicles.post("/register-vehicle", async (c) => {
+                                                                                        vehicles.post("/register-vehicle", requireAuth, async (c) => {
                                                                                           const user = c.get("user")!;
                                                                                           if (user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           const body = await c.req.parseBody();
@@ -146,7 +154,7 @@ function myCollectionEmptyState(): string {
     </div>`;
 }
 
-                                                                                        vehicles.get("/dashboard", async (c) => {
+                                                                                        vehicles.get("/dashboard", requireAuth, async (c) => {
                                                                                           const user = c.get("user")!;
                                                                                           const list = await getVehiclesByUser(c.env.DB, user.id);
                                                                                           if (list.length > 0) return c.redirect(`/vehicles/${list[0].id}`);
@@ -180,7 +188,7 @@ function photoBox(vehicle: Vehicle, icon: string, uploadEnabled: boolean): strin
                                                                                             return vehicle;
                                                                                         }
 
-vehicles.post("/vehicles/:id/photo", async (c) => {
+vehicles.post("/vehicles/:id/photo", requireAuth, async (c) => {
     const vehicle = await requireOwnedVehicle(c);
     if (!vehicle) return c.notFound();
     if (!c.env.DOCS) return c.redirect(`/vehicles/${vehicle.id}`);
@@ -209,7 +217,7 @@ vehicles.post("/vehicles/:id/photo", async (c) => {
     return c.redirect(`/vehicles/${vehicle.id}`);
 });
 
-vehicles.get("/vehicles/:id/photo", async (c) => {
+vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
     const vehicle = await requireOwnedVehicle(c);
     if (!vehicle || !vehicle.photo_r2_key || !c.env.DOCS) return c.notFound();
 
@@ -221,7 +229,7 @@ vehicles.get("/vehicles/:id/photo", async (c) => {
     return c.body(object.body as any);
 });
 
-                                                                                          vehicles.get("/vehicles/:id", async (c) => {
+                                                                                          vehicles.get("/vehicles/:id", requireAuth, async (c) => {
                                                                                             const user = c.get("user")!;
                                                                                             const vehicle = await requireOwnedVehicle(c);
                                                                                             if (!vehicle) return c.notFound();

@@ -7,7 +7,10 @@ import { getVehicleById, listDocuments, addDocument, setDocumentVisibility, getD
 
 export const documents = new Hono<Env>();
 
-documents.use("*", requireAuth);
+// requireAuth is applied per-route below, not via a blanket
+// documents.use("*", ...) — see the matching note in vehicles.ts for why: a
+// wildcard middleware here leaks into every route in the whole app (they're
+// all mounted at "/"), which is what broke the public /verify page.
 
 const FOLDER_LABEL: Record<Folder, string> = {
     service: "Service Documents",
@@ -43,7 +46,7 @@ function isImage(doc: Document): boolean {
     return !!doc.content_type && doc.content_type.startsWith("image/");
 }
 
-documents.get("/vehicles/:id/folder/:folder", async (c) => {
+documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
     const user = c.get("user")!;
     const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
     const folderParam = c.req.param("folder");
@@ -139,7 +142,7 @@ documents.get("/vehicles/:id/folder/:folder", async (c) => {
     );
 });
 
-documents.post("/vehicles/:id/folder/:folder/upload", async (c) => {
+documents.post("/vehicles/:id/folder/:folder/upload", requireAuth, async (c) => {
     const user = c.get("user")!;
     const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
     const folderParam = c.req.param("folder");
@@ -175,7 +178,7 @@ documents.post("/vehicles/:id/folder/:folder/upload", async (c) => {
     return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}`);
 });
 
-documents.post("/vehicles/:id/folder/:folder/documents/:docId/visibility", async (c) => {
+documents.post("/vehicles/:id/folder/:folder/documents/:docId/visibility", requireAuth, async (c) => {
     const user = c.get("user")!;
     const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
     const folderParam = c.req.param("folder");
@@ -191,7 +194,7 @@ documents.post("/vehicles/:id/folder/:folder/documents/:docId/visibility", async
     return c.redirect(`/vehicles/${vehicle.id}/folder/${folderParam}`);
 });
 
-documents.get("/vehicles/:id/folder/:folder/documents/:docId", async (c) => {
+documents.get("/vehicles/:id/folder/:folder/documents/:docId", requireAuth, async (c) => {
     const user = c.get("user")!;
     const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
     const folderParam = c.req.param("folder");
