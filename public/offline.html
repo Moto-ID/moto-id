@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're offline — Moto ID</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<style>
+  :root{
+    --bg: oklch(99% 0 0);
+    --ink: oklch(14% 0 0);
+    --ink-muted: oklch(42% 0 0);
+    --ink-subtle: oklch(58% 0 0);
+    --hairline: oklch(87% 0 0);
+    --font-display: 'Georgia', serif;
+    --font-body: system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-body);min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .wordmark{font-weight:600;font-size:12px;letter-spacing:0.2em;display:block;margin-bottom:28px}
+  h1{font-family:var(--font-display);font-weight:400;font-size:26px;margin:0 0 14px}
+  p{color:var(--ink-muted);font-size:14px;line-height:1.6;margin:0 0 26px;max-width:340px}
+  button{
+    font-family:inherit;font-size:13px;letter-spacing:0.04em;color:var(--bg);background:var(--ink);
+    border:none;padding:13px 26px;cursor:pointer;
+  }
+  button:hover{opacity:0.88}
+</style>
+</head>
+<body>
+  <div>
+    <span class="wordmark">MOTO ID</span>
+    <h1>You're offline</h1>
+    <p>We couldn't reach Moto ID. Check your connection and try again — your collection and vehicle records will be right where you left them.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

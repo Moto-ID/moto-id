@@ -1,0 +1,26 @@
+{
+  "name": "Moto ID",
+  "short_name": "Moto ID",
+  "description": "Digital provenance for exceptional cars and motorcycles.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "id": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fcfcfc",
+  "theme_color": "#fcfcfc",
+  "icons": [
+    {
+      "src": "/media/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/media/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
