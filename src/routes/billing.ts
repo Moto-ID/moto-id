@@ -86,8 +86,6 @@ billing.post("/buy/checkout", requireAuth, async (c) => {
         <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">GET A MOTO ID</div>
         <div style="font-family:var(--font-display);font-size:26px;line-height:1.3;margin-bottom:22px">Payments aren't set up yet.</div>
         <div class="error">We couldn't start checkout right now. Please check back shortly.</div>
-        <!-- TEMP DEBUG: remove this comment once checkout is confirmed working -->
-        <!-- ${esc(errMessage)} -->
         <a href="/dashboard" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted);margin-top:24px">&larr; Back to my collection</a>
       </div>`;
     return c.html(authShell("Get a Moto ID — Moto ID", body), 500);
