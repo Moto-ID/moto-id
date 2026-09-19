@@ -84,6 +84,23 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .error{color:oklch(45% 0.18 25);font-size:13px;margin-bottom:20px}
 .breadcrumb a{color:inherit}
 .breadcrumb a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+
+/* Install-app banner (see pageHead's beforeinstallprompt script). Hidden
+   until the browser confirms the site is actually installable, so it never
+   shows on a browser that can't install (e.g. iOS Safari). */
+#pwa-install-banner{
+  display:none;position:fixed;left:16px;right:16px;bottom:16px;z-index:1000;
+  max-width:420px;margin:0 auto;background:var(--ink);color:var(--bg);
+  padding:16px 18px;align-items:center;gap:14px;
+  box-shadow:0 12px 32px -12px rgba(0,0,0,0.4);
+}
+#pwa-install-banner.is-visible{display:flex}
+#pwa-install-banner .pwa-install-text{flex:1 1 auto;font-size:12.5px;line-height:1.5}
+#pwa-install-banner button{font-family:var(--font-body);cursor:pointer;border:none}
+#pwa-install-banner .pwa-install-btn{background:var(--bg);color:var(--ink);font-size:12.5px;letter-spacing:0.03em;padding:9px 16px;white-space:nowrap}
+#pwa-install-banner .pwa-install-btn:hover{background:oklch(88% 0 0)}
+#pwa-install-banner .pwa-install-dismiss{background:transparent;color:var(--bg);opacity:0.6;font-size:18px;line-height:1;padding:4px}
+#pwa-install-banner .pwa-install-dismiss:hover{opacity:1}
 `;
 
 export function pageHead(title: string): string {
@@ -110,6 +127,73 @@ export function pageHead(title: string): string {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     });
   }
+
+  // Explicit "Install app" banner. Chrome/Android (and desktop Chrome/Edge)
+  // fire 'beforeinstallprompt' once they've decided the site is installable
+  // - but Chrome's own automatic prompt is subject to an internal timing
+  // heuristic and won't necessarily appear on a first visit, so relying on
+  // it alone left visitors with no obvious way to install. This shows our
+  // own on-brand button the moment the browser confirms installability is
+  // possible, rather than waiting on Chrome's own UI. It never appears at
+  // all on browsers that don't support this (e.g. iOS Safari, where
+  // installing is only possible via Share -> Add to Home Screen).
+  (function () {
+    var DISMISS_KEY = 'motoid-pwa-install-dismissed-at';
+    var DISMISS_DAYS = 30;
+    var deferredPrompt = null;
+
+    function recentlyDismissed() {
+      try {
+        var at = Number(localStorage.getItem(DISMISS_KEY) || 0);
+        return at && Date.now() - at < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function buildBanner() {
+      var el = document.createElement('div');
+      el.id = 'pwa-install-banner';
+      el.innerHTML =
+        '<div class="pwa-install-text">Install Moto ID on this device for quick, full-screen access.</div>' +
+        '<button type="button" class="pwa-install-btn">Install</button>' +
+        '<button type="button" class="pwa-install-dismiss" aria-label="Dismiss">&times;</button>';
+      document.body.appendChild(el);
+
+      el.querySelector('.pwa-install-btn').addEventListener('click', async function () {
+        if (!deferredPrompt) return;
+        el.classList.remove('is-visible');
+        deferredPrompt.prompt();
+        try {
+          await deferredPrompt.userChoice;
+        } catch (e) {}
+        deferredPrompt = null;
+      });
+
+      el.querySelector('.pwa-install-dismiss').addEventListener('click', function () {
+        el.classList.remove('is-visible');
+        try {
+          localStorage.setItem(DISMISS_KEY, String(Date.now()));
+        } catch (e) {}
+      });
+
+      return el;
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (recentlyDismissed()) return;
+      var el = document.getElementById('pwa-install-banner') || buildBanner();
+      el.classList.add('is-visible');
+    });
+
+    window.addEventListener('appinstalled', function () {
+      deferredPrompt = null;
+      var el = document.getElementById('pwa-install-banner');
+      if (el) el.classList.remove('is-visible');
+    });
+  })();
 </script>`;
 }
 
