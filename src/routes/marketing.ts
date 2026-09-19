@@ -82,6 +82,8 @@ marketing.get("/", (c) => {
       <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px">BESPOKE COACHWORK</div>
     </div>
 
+    ${PORTAL_VIDEO_SECTION}
+
     <!-- THE MARK: dark spotlight -->
     <div id="the-mark" style="background:oklch(11% 0 0);padding:100px 56px;position:relative;overflow:hidden">
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
@@ -143,8 +145,6 @@ marketing.get("/", (c) => {
         </div>
       </div>
     </div>
-
-    ${PORTAL_VIDEO_SECTION}
 
     <!-- FOR THE DISCERNING OWNER -->
     <div style="padding:100px 56px;border-bottom:1px solid var(--hairline)">
