@@ -20,161 +20,26 @@ const MOTO_MARK_SVG = (size: number) => `<svg viewBox="0 0 25 25" width="${size}
   </g>
 </svg>`;
 
-// Simple monochrome line-art vehicle icons for the "See it in action" demo reel.
-const CAR_ICON = (size: number) => `<svg viewBox="0 0 120 60" width="${size}" height="${size * 0.5}" xmlns="http://www.w3.org/2000/svg">
-  <path d="M10 40 L18 24 Q26 14 40 14 L70 14 Q82 14 88 24 L98 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M4 40 L4 34 Q4 30 8 30 L104 30 Q110 30 112 34 L112 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  <line x1="2" y1="40" x2="114" y2="40" stroke="currentColor" stroke-width="2.5"/>
-  <circle cx="26" cy="42" r="8" fill="currentColor"/>
-  <circle cx="90" cy="42" r="8" fill="currentColor"/>
-</svg>`;
-
-const BIKE_ICON = (size: number) => `<svg viewBox="0 0 120 60" width="${size}" height="${size * 0.5}" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="22" cy="42" r="14" fill="none" stroke="currentColor" stroke-width="2.5"/>
-  <circle cx="98" cy="42" r="14" fill="none" stroke="currentColor" stroke-width="2.5"/>
-  <circle cx="22" cy="42" r="2.5" fill="currentColor"/>
-  <circle cx="98" cy="42" r="2.5" fill="currentColor"/>
-  <path d="M22 42 L48 26 L64 26 L74 42" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M64 26 L98 42" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M48 26 L44 14 L58 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="30" y="30" width="20" height="7" rx="3" fill="currentColor"/>
-</svg>`;
-
-// isCar: rigid engraved plate (dashboard); otherwise a round tamper-evident sticker (headstock).
-const PLATE_CARD = (isCar: boolean) =>
-  isCar
-    ? `<div style="width:130px;height:84px;background:var(--bg);border:1px solid var(--hairline);box-shadow:0 20px 40px -18px rgba(0,0,0,0.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
-        <div style="font-size:7.5px;letter-spacing:0.16em;color:var(--ink-subtle)">MOTO&nbsp;ID</div>
-        <div style="color:var(--ink)">${MOTO_MARK_SVG(30)}</div>
-        <div style="font-family:var(--font-mono);font-size:9.5px">No.&nbsp;719726</div>
-      </div>`
-    : `<div style="width:96px;height:96px;border-radius:50%;border:1.5px dashed var(--ink-subtle);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-        <div style="color:var(--ink)">${MOTO_MARK_SVG(26)}</div>
-        <div style="font-family:var(--font-mono);font-size:8.5px">No.&nbsp;305297</div>
-      </div>`;
-
-const PHONE_SCAN = () => `<div style="width:100px;height:180px;border:2px solid var(--ink);border-radius:14px;position:relative;overflow:hidden;background:var(--bg)">
-  <div style="position:absolute;top:8px;left:50%;transform:translateX(-50%);width:28px;height:4px;border-radius:2px;background:var(--hairline)"></div>
-  <div style="position:absolute;inset:20px 14px;border:1px solid var(--ink-subtle)">
-    <div style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid var(--ink);border-left:2px solid var(--ink)"></div>
-    <div style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-top:2px solid var(--ink);border-right:2px solid var(--ink)"></div>
-    <div style="position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-bottom:2px solid var(--ink);border-left:2px solid var(--ink)"></div>
-    <div style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:2px solid var(--ink);border-right:2px solid var(--ink)"></div>
-    <div class="reel-scanline" style="position:absolute;left:0;right:0;height:2px;background:var(--ink);top:50%"></div>
-  </div>
-</div>`;
-
-const PHONE_APP = (make: string, year: string, num: string) => `<div style="width:120px;height:200px;border:2px solid var(--ink);border-radius:16px;padding:14px 12px;background:var(--bg);display:flex;flex-direction:column;gap:8px">
-  <div style="width:22px;height:3px;border-radius:2px;background:var(--hairline);margin:0 auto 4px"></div>
-  <div style="font-family:var(--font-display);font-size:12.5px;line-height:1.25">${make}<br><span style="font-size:10px;color:var(--ink-subtle);font-family:var(--font-mono)">${year}</span></div>
-  <div style="display:inline-flex;align-items:center;gap:4px;font-size:7.5px;letter-spacing:0.08em;color:var(--ink-muted)">
-    <span style="width:5px;height:5px;border-radius:50%;background:var(--ink-muted);display:inline-block"></span>AUTHENTICATED
-  </div>
-  <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-subtle);margin-top:auto">No.&nbsp;${num}</div>
-</div>`;
-
-const DEMO_REEL_SECTION = `
-<!-- SEE IT IN ACTION: looping demo reel -->
+// "SEE IT IN ACTION" now shows a real screen-recording-style video of the
+// live product (the Tom Whitmore / Dodge Charger R/T demo account — see
+// deployment-status.md) rather than illustrated icons, so visitors can see
+// the actual dashboard, photo folder, document folder and public verify
+// page before signing up. Built from real screenshots framed in a simple
+// browser-chrome mockup; see scripts/ for how it was generated.
+const PORTAL_VIDEO_SECTION = `
+<!-- SEE IT IN ACTION: real product video -->
 <div id="see-it-in-action" style="padding:100px 56px;border-bottom:1px solid var(--hairline);background:var(--bg-panel)">
   <div style="font-size:10.5px;letter-spacing:0.18em;color:var(--ink-subtle);margin-bottom:16px;text-align:center">SEE IT IN ACTION</div>
-  <div style="font-family:var(--font-display);font-size:min(34px,7vw);line-height:1.3;text-align:center;margin-bottom:56px;max-width:560px;margin-left:auto;margin-right:auto">From engraved plate to verified history, in one scan.</div>
+  <div style="font-family:var(--font-display);font-size:min(34px,7vw);line-height:1.3;text-align:center;margin-bottom:16px;max-width:620px;margin-left:auto;margin-right:auto">Not a mockup &mdash; the real record.</div>
+  <div style="font-size:14.5px;color:var(--ink-muted);text-align:center;margin-bottom:48px;max-width:520px;margin-left:auto;margin-right:auto">A live look at an actual Moto ID account: the private dashboard, its document and photo folders, and the public page anyone scanning the plate lands on.</div>
 
-  <div class="reel" id="motoReel">
-    <div class="reel-scene is-active">
-      <div class="reel-eyebrow">01 &mdash; THE VEHICLE</div>
-      <div class="reel-stage"><div class="reel-anim reel-spin play">${CAR_ICON(96)}</div></div>
-      <div class="reel-caption">A classic car, ready to be recorded.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">02 &mdash; THE PLATE</div>
-      <div class="reel-stage"><div class="reel-anim reel-pop play">${PLATE_CARD(true)}</div></div>
-      <div class="reel-caption">One engraved plate, fixed to the dashboard.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">03 &mdash; THE SCAN</div>
-      <div class="reel-stage">${PHONE_SCAN()}</div>
-      <div class="reel-caption">Scanned in seconds, from any phone.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">04 &mdash; THE RECORD</div>
-      <div class="reel-stage">${PHONE_APP("Porsche 911", "1988", "719726")}</div>
-      <div class="reel-caption">Its full, verified history &mdash; instantly.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">05 &mdash; THE VEHICLE</div>
-      <div class="reel-stage"><div class="reel-anim reel-spin play">${BIKE_ICON(96)}</div></div>
-      <div class="reel-caption">Motorcycles get exactly the same standard.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">06 &mdash; THE STICKER</div>
-      <div class="reel-stage"><div class="reel-anim reel-pop play">${PLATE_CARD(false)}</div></div>
-      <div class="reel-caption">A tamper-evident ID sticker on the headstock.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">03 &mdash; THE SCAN</div>
-      <div class="reel-stage">${PHONE_SCAN()}</div>
-      <div class="reel-caption">Scanned in seconds, from any phone.</div>
-    </div>
-    <div class="reel-scene">
-      <div class="reel-eyebrow">04 &mdash; THE RECORD</div>
-      <div class="reel-stage">${PHONE_APP("Ducati Monster", "2019", "305297")}</div>
-      <div class="reel-caption">Its full, verified history &mdash; instantly.</div>
-    </div>
+  <div style="max-width:860px;margin:0 auto">
+    <video controls autoplay muted loop preload="auto" poster="/media/portal-demo-poster.jpg" playsinline style="width:100%;display:block;border:1px solid var(--hairline);box-shadow:0 30px 60px -20px rgba(0,0,0,0.22)">
+      <source src="/media/portal-demo.mp4" type="video/mp4">
+    </video>
+    <div style="font-size:11px;color:var(--ink-subtle);margin-top:14px;text-align:center">A real account &mdash; the 1970 Dodge Charger R/T demo record.</div>
   </div>
-  <div class="reel-dots" id="reelDots"></div>
 </div>
-
-<style>
-  .reel{position:relative;max-width:360px;height:420px;margin:0 auto;border:1px solid var(--hairline);background:var(--bg);overflow:hidden}
-  .reel-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px;opacity:0;transition:opacity 0.7s ease}
-  .reel-scene.is-active{opacity:1}
-  .reel-eyebrow{font-size:9.5px;letter-spacing:0.16em;color:var(--ink-subtle)}
-  .reel-stage{display:flex;align-items:center;justify-content:center;min-height:140px}
-  .reel-caption{font-family:var(--font-display);font-size:16px;text-align:center;max-width:260px;line-height:1.4}
-  .reel-anim{color:var(--ink)}
-  .reel-spin.play{animation:reelSpin 3.4s ease-in-out}
-  @keyframes reelSpin{0%{transform:perspective(500px) rotateY(-38deg)}50%{transform:perspective(500px) rotateY(38deg)}100%{transform:perspective(500px) rotateY(-38deg)}}
-  .reel-pop.play{animation:reelPop 3.4s ease-in-out}
-  @keyframes reelPop{0%{transform:scale(0.82)}50%{transform:scale(1.12)}100%{transform:scale(0.82)}}
-  .reel-scanline{animation:reelScan 1.6s ease-in-out infinite}
-  @keyframes reelScan{0%{transform:translateY(-46px);opacity:0.2}50%{opacity:0.9}100%{transform:translateY(46px);opacity:0.2}}
-  .reel-dots{display:flex;justify-content:center;gap:8px;margin-top:28px}
-  .reel-dot{width:5px;height:5px;border-radius:50%;background:var(--hairline);transition:background 0.3s ease}
-  .reel-dot.is-active{background:var(--ink)}
-  @media (max-width:480px){ .reel{max-width:100%} }
-</style>
-
-<script>
-(function(){
-  var reel = document.getElementById('motoReel');
-  if(!reel) return;
-  var scenes = reel.querySelectorAll('.reel-scene');
-  var dotsWrap = document.getElementById('reelDots');
-  var dots = [];
-  scenes.forEach(function(_, k){
-    var d = document.createElement('span');
-    d.className = 'reel-dot' + (k === 0 ? ' is-active' : '');
-    dotsWrap.appendChild(d);
-    dots.push(d);
-  });
-  function show(idx){
-    scenes.forEach(function(s, k){
-      var active = k === idx;
-      s.classList.toggle('is-active', active);
-      if(active){
-        s.querySelectorAll('.reel-anim').forEach(function(el){
-          el.classList.remove('play');
-          void el.offsetWidth;
-          el.classList.add('play');
-        });
-      }
-    });
-    dots.forEach(function(d, k){ d.classList.toggle('is-active', k === idx); });
-  }
-  var i = 0;
-  setInterval(function(){ i = (i + 1) % scenes.length; show(i); }, 3500);
-})();
-</script>
 `;
 
 marketing.get("/", (c) => {
@@ -191,9 +56,10 @@ marketing.get("/", (c) => {
     <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);min-height:660px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:56px">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(112deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)"></div>
 
-      <div style="position:relative;z-index:1">
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start">
         <div style="font-size:10.5px;letter-spacing:0.24em;color:oklch(74% 0 0);margin-bottom:26px">DIGITAL PROVENANCE FOR EXCEPTIONAL CARS &amp; MOTORCYCLES</div>
-        <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:min(128px, 14vw);line-height:0.88;letter-spacing:-0.01em">Provenance<span style="color:oklch(52% 0 0)">.</span></div>
+        <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:min(104px, 11.5vw);line-height:0.88;letter-spacing:-0.01em">Provenance<span style="color:oklch(52% 0 0)">.</span></div>
+        <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" class="hero-plate-img" style="width:340px;max-width:80vw;display:block;margin-top:28px;border:1px solid oklch(30% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
       </div>
 
       <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:48px;flex-wrap:wrap">
@@ -283,7 +149,7 @@ marketing.get("/", (c) => {
       </div>
     </div>
 
-    ${DEMO_REEL_SECTION}
+    ${PORTAL_VIDEO_SECTION}
 
     <!-- FOR THE DISCERNING OWNER -->
     <div style="padding:100px 56px;border-bottom:1px solid var(--hairline)">
@@ -310,8 +176,24 @@ marketing.get("/", (c) => {
       <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Request a plate &mdash; from &pound;29</a>
     </div>
 
+    <!-- ABOUT: merged onto the homepage itself so the nav can smooth-scroll
+         straight to it, rather than linking out to a separate page. -->
+    <div id="about" style="padding:100px 56px">
+      ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
+      <div style="max-width:680px;margin:-24px auto 0;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
+        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate and a set of tamper-evident stickers, both carrying the same unique number, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration and VIN, service documents, invoices and photographs. Anyone can scan the plate or a sticker to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
+
+        <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
+
+        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The plate and stickers make the identity hard to quietly move to a different vehicle; the record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
+
+        <p>It's a one-time purchase, not a subscription. You pay for the plate and the marks; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+      </div>
+    </div>
+
     <style>
       @media (max-width:820px){ .two-col{grid-template-columns:1fr!important} .three-col{grid-template-columns:1fr!important} .three-col > div{border-right:none!important;border-bottom:1px solid var(--hairline);padding:0 0 24px!important} .three-col > div:last-child{border-bottom:none} }
+      @media (max-width:640px){ .hero-plate-img{width:100%!important;max-width:100%!important} }
     </style>
   `;
   return c.html(marketingShell("Moto ID — Digital provenance for exceptional vehicles", body, { activeNav: "" }));
@@ -394,22 +276,10 @@ const PAGE_HEADER = (eyebrow: string, headline: string) => `
   </div>
 `;
 
-marketing.get("/about", (c) => {
-  const body = `
-    ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
-
-    <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
-      <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate and a set of tamper-evident stickers, both carrying the same unique number, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration and VIN, service documents, invoices and photographs. Anyone can scan the plate or a sticker to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
-
-      <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
-
-      <p>Moto ID doesn't solve that by asking anyone to trust us instead. The plate and stickers make the identity hard to quietly move to a different vehicle; the record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
-
-      <p>It's a one-time purchase, not a subscription. You pay for the plate and the marks; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
-    </div>
-  `;
-  return c.html(marketingShell("About — Moto ID", body, { activeNav: "about" }));
-});
+// About now lives as a section on the homepage itself (see "#about" in the
+// "/" route above), so this old standalone page just redirects there for
+// anyone with an existing "/about" link or bookmark.
+marketing.get("/about", (c) => c.redirect("/#about", 301));
 
 marketing.get("/contact", (c) => {
   const body = `
