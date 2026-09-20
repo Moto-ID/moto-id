@@ -37,11 +37,36 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:22px 56px;border-bottom:1px solid var(--hairline);background:var(--bg);transition:box-shadow 0.2s ease}
 .nav.is-scrolled{box-shadow:0 8px 24px -20px rgba(0,0,0,0.35)}
 .nav .wordmark{font-weight:600;font-size:12px;letter-spacing:0.2em}
-.nav .links{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.nav .links{position:relative;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .nav .links a{font-size:11px;letter-spacing:0.05em;color:var(--ink-muted);white-space:nowrap}
 .nav .links a:hover, .nav .links a.active{color:var(--ink)}
 .nav .right{display:flex;align-items:center;gap:24px}
-.nav-toggle{display:none;background:none;border:none;padding:6px;margin:-6px;color:var(--ink);cursor:pointer}
+.nav-toggle{display:none;background:none;border:none;padding:6px;margin:-6px;color:var(--ink);cursor:pointer;transition:transform .25s ease}
+.nav-toggle svg .bar{transform-origin:center;transition:transform .25s ease, opacity .15s ease}
+.nav-toggle.is-open .bar-top{transform:translateY(6px) rotate(45deg)}
+.nav-toggle.is-open .bar-mid{opacity:0}
+.nav-toggle.is-open .bar-bottom{transform:translateY(-6px) rotate(-45deg)}
+
+/* Scroll-spy underline — a thin bar that slides beneath the desktop nav
+   links to track which homepage section is currently in view. Position and
+   width are set inline (via JS) from the active link's own geometry, so
+   only transform/opacity need to animate here. Hidden until JS has placed
+   it over a real target, so it never flashes at the default 0-width. */
+.nav .links .nav-underline{position:absolute;left:0;bottom:-9px;height:2px;width:0;background:var(--ink);opacity:0;transition:transform .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1),opacity .2s ease}
+.nav .links .nav-underline.is-visible{opacity:1}
+
+/* Scroll progress — hairline-thin bar tracking how far down the page the
+   visitor has scrolled, sitting right on the nav's bottom border. */
+.nav-progress{position:absolute;left:0;right:0;bottom:-1px;height:1px;background:transparent;overflow:hidden;pointer-events:none}
+.nav-progress .fill{height:100%;width:0%;background:var(--ink);transition:width .1s linear}
+
+/* Pulsing dot beside "Verify a vehicle" — draws the eye to the core action
+   without any moving text. */
+.nav .links a.nav-verify{display:inline-flex;align-items:center;gap:7px}
+.nav .links a.nav-verify .pulse-dot{position:relative;width:6px;height:6px;border-radius:50%;background:var(--ink);flex:none}
+.nav .links a.nav-verify .pulse-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--ink);opacity:0.6;animation:pulse-ring 2.2s cubic-bezier(.4,0,.2,1) infinite}
+@media (prefers-reduced-motion: reduce){.nav .links a.nav-verify .pulse-dot::after{animation:none}}
+@keyframes pulse-ring{0%{transform:scale(0.6);opacity:0.6}100%{transform:scale(2.1);opacity:0}}
 
 /* Mobile nav: hamburger toggle + dropdown panel, since links/right are
    hidden below 900px and previously had no fallback at all. */
