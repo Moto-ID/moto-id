@@ -88,8 +88,9 @@ marketing.get("/", (c) => {
     <div id="the-mark" style="background:oklch(11% 0 0);padding:100px 56px;position:relative;overflow:hidden">
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1" class="two-col">
-        <div style="display:flex;justify-content:center">
-          <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" style="width:380px;max-width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-3deg)">
+        <div style="display:flex;justify-content:center;align-items:flex-start;gap:22px;flex-wrap:wrap">
+          <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" style="width:min(240px,42vw);max-width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-4deg)">
+          <img src="/media/hero-plate-illustration-moto.jpg" alt="A hand-drawn illustration of a bobber motorcycle, with a detail inset of its engraved Moto ID plate and QR code fitted near the handlebars" style="width:min(240px,42vw);max-width:100%;display:block;margin-top:34px;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(4deg)">
         </div>
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
