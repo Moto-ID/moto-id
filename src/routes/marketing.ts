@@ -53,7 +53,7 @@ marketing.get("/", (c) => {
     </style>
 
     <!-- HERO: full-bleed dark, overlaid type -->
-    <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);min-height:660px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:56px">
+    <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);position:relative;overflow:hidden;display:flex;flex-direction:column;gap:56px;padding:72px 56px 64px">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(112deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)"></div>
 
       <div style="position:relative;z-index:1">
