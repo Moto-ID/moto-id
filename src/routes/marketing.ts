@@ -63,7 +63,7 @@ marketing.get("/", (c) => {
 
       <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:48px;flex-wrap:wrap">
         <div>
-          <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Held to the same standard as the vehicle it belongs to &mdash; engraved, tamper-evident, and yours to prove, at any time.</div>
+          <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Held to the same standard as the vehicle it belongs to &mdash; permanently engraved, publicly verifiable, and yours to prove, at any time.</div>
           <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
             <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Request a plate</a>
             <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
@@ -95,7 +95,7 @@ marketing.get("/", (c) => {
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
           <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:40px;line-height:1.22;margin-bottom:24px">Engraved once.<br>Verified forever.</div>
-          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px;margin-bottom:36px">Each plate is engraved to order and fixed where it belongs &mdash; the top of a dashboard, a tank or a tail unit. Tamper-evident marks placed elsewhere on the vehicle carry the same identity, so its history can't quietly move to another chassis.</div>
+          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px;margin-bottom:36px">Each plate is engraved to order and fixed where it belongs &mdash; the top of a dashboard, a tank or a tail unit &mdash; carrying a unique number and a QR code that links straight to the vehicle's public record.</div>
           <div style="display:flex;flex-direction:column;gap:18px">
             <div style="border-top:1px solid oklch(26% 0 0);padding-top:14px">
               <span style="font-weight:600;font-size:13.5px;color:oklch(97% 0 0)">For cars &mdash; </span><span style="font-size:13.5px;color:oklch(74% 0 0)">fixed at the top of the dashboard, in clear view.</span>
@@ -112,7 +112,7 @@ marketing.get("/", (c) => {
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">HOW IT'S MARKED</div>
           <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:28px;line-height:1.3;margin-bottom:20px">Laser-annealed, not printed.</div>
-          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px">Every plate and sticker is marked on our own laser, tuned to anneal the stainless steel's surface rather than just etch or print it. Annealing changes the metal's own oxide layer instead of cutting through or coating it, so the mark won't fade, flake or rust &mdash; it's part of the steel for the life of the vehicle.</div>
+          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px">Every plate is marked on our own laser, tuned to anneal the stainless steel's surface rather than just etch or print it. Annealing changes the metal's own oxide layer instead of cutting through or coating it, so the mark won't fade, flake or rust &mdash; it's part of the steel for the life of the vehicle.</div>
         </div>
         <div>
           <img src="/media/plate-example.jpg" alt="A Moto ID plate laser-marked with a Porsche 911's registration and Moto ID number, next to its QR code" style="width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
@@ -128,15 +128,15 @@ marketing.get("/", (c) => {
 
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">01</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Commission your plate. </span><span style="font-size:15px;color:var(--ink-muted)">Tell us about the vehicle; it's engraved to order and shipped with its tamper-evident marks.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Commission your plate. </span><span style="font-size:15px;color:var(--ink-muted)">Tell us about the vehicle; it's engraved to order and posted straight to you.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">02</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Fix it in place. </span><span style="font-size:15px;color:var(--ink-muted)">On the dashboard, tank or wherever suits the build; marks go elsewhere on the vehicle.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Fix it in place. </span><span style="font-size:15px;color:var(--ink-muted)">On the dashboard, tank or wherever suits the build &mdash; in clear view, ready to scan.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">03</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Build the record. </span><span style="font-size:15px;color:var(--ink-muted)">Registration, VIN and specification, then documents, invoices and photographs as the history unfolds.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Build the record. </span><span style="font-size:15px;color:var(--ink-muted)">Registration and specification, then documents, invoices and photographs as the history unfolds.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">04</div>
@@ -151,7 +151,7 @@ marketing.get("/", (c) => {
       <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:32px;max-width:960px;margin:0 auto" class="three-col">
         <div style="padding-right:36px;border-right:1px solid var(--hairline)">
           <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:14px">AGAINST COUNTERFEIT HISTORY</div>
-          <div style="font-size:13.5px;color:var(--ink-muted)">A record tied to a tamper-evident mark can't be quietly rewritten, or transplanted onto another chassis.</div>
+          <div style="font-size:13.5px;color:var(--ink-muted)">A record built and dated by the owner over time is far harder to fake than a single certificate issued once.</div>
         </div>
         <div style="padding:0 36px;border-right:1px solid var(--hairline)">
           <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:14px">FOR WORK DONE BY HAND</div>
@@ -175,13 +175,13 @@ marketing.get("/", (c) => {
     <div id="about" style="padding:100px 56px">
       ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
       <div style="max-width:680px;margin:-24px auto 0;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
-        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate and a set of tamper-evident stickers, both carrying the same unique number, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration and VIN, service documents, invoices and photographs. Anyone can scan the plate or a sticker to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
+        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate carrying a unique number and a QR code, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration details, service documents, invoices and photographs. Anyone can scan the plate to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
 
         <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
 
-        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The plate and stickers make the identity hard to quietly move to a different vehicle; the record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
+        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
 
-        <p>It's a one-time purchase, not a subscription. You pay for the plate and the marks; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+        <p>It's a one-time purchase, not a subscription. You pay for the plate; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
       </div>
     </div>
 
@@ -210,7 +210,7 @@ marketing.get("/pricing", (c) => {
         <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:32px">one-time &middot; per vehicle &middot; first 250 kits (usually &pound;45)</div>
         <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:36px">
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">One engraved plate, made to order</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Set of tamper-evident marks</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">QR code linking to your public record</div>
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Unlimited document storage</div>
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Public verification page</div>
           <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Record kept for the life of the vehicle</div>
@@ -235,8 +235,8 @@ marketing.get("/pricing", (c) => {
     <div style="max-width:920px;margin:0 auto 100px;border-top:1px solid var(--hairline)">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid var(--hairline);gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px">Replacement plate or stickers</div>
-          <div style="font-size:12.5px;color:var(--ink-subtle)">Lost or damaged marks, re-issued against your existing Moto ID number.</div>
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">Replacement plate</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">Lost or damaged plate, re-issued against your existing Moto ID number.</div>
         </div>
         <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;18</div>
       </div>
@@ -304,7 +304,7 @@ marketing.get("/privacy", (c) => {
 
       ${s("Why we collect it", "To create and run your account, generate each vehicle's public verification page, store the documents and photos you upload, and respond if you contact us. We don't use your data for advertising, and we don't sell it to anyone.")}
 
-      ${s("What's public", "The public page reached by scanning a plate or sticker shows only vehicle-level facts &mdash; make, model, how long it's been registered, how many records exist &mdash; plus any specific document or photo you've explicitly marked public in a folder view. It never shows your name, email or any other personal detail, and anything you haven't marked public stays private by default.")}
+      ${s("What's public", "The public page reached by scanning the plate shows only vehicle-level facts &mdash; make, model, how long it's been registered, how many records exist &mdash; plus any specific document or photo you've explicitly marked public in a folder view. It never shows your name, email or any other personal detail, and anything you haven't marked public stays private by default.")}
 
       ${s("Cookies", "We use a single session cookie to keep you signed in. We don't use third-party analytics or advertising cookies.")}
 
@@ -331,7 +331,7 @@ marketing.get("/terms", (c) => {
     <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
       <p style="color:var(--ink-subtle);font-size:12.5px;margin-bottom:20px">Last updated 15 September 2026.</p>
 
-      <p>These terms cover the Moto ID kit (an engraved plate and tamper-evident stickers) and the free account and public verification page that go with it. By buying a kit or creating an account, you agree to them.</p>
+      <p>These terms cover the Moto ID kit (a single engraved plate) and the free account and public verification page that go with it. By buying a kit or creating an account, you agree to them.</p>
 
       ${s("What Moto ID is", "The kit is a one-time purchase, not a subscription &mdash; current prices are on the <a href=\"/pricing\">Pricing</a> page. The account, its document folders and the public verification page are free for as long as you own the vehicle.")}
 

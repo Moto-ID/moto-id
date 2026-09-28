@@ -149,7 +149,7 @@ function myCollectionEmptyState(): string {
   return `
     <div style="max-width:480px;margin:70px auto;text-align:center">
       <div style="font-family:var(--font-display);font-size:26px;margin-bottom:14px">My Collection is empty.</div>
-      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:32px">Your account is free to keep, for as long as you like. To register a vehicle and get an actual Moto ID, you'll need a Moto ID Kit &mdash; an engraved plate and tamper-evident stickers, which come with the digital record and public verification page you'll build on here.</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:32px">Your account is free to keep, for as long as you like. To register a vehicle and get an actual Moto ID, you'll need a Moto ID Kit &mdash; a single engraved plate, which comes with the digital record and public verification page you'll build on here.</div>
       <a href="/buy" class="btn btn-solid" style="display:inline-block;border:none;padding:15px 34px">Get a Moto ID &mdash; from &pound;29</a>
     </div>`;
 }

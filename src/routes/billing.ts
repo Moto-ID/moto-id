@@ -18,12 +18,12 @@ function pricingFor(existingVehicleCount: number) {
     ? {
         amountPence: FOUNDING_PRICE_PENCE,
         label: "The Moto ID Kit — founding price",
-        description: "One engraved plate, tamper-evident sticker set, and your first vehicle's digital record.",
+        description: "One engraved plate and your first vehicle's digital record.",
       }
     : {
         amountPence: ADDITIONAL_VEHICLE_PRICE_PENCE,
         label: "Additional vehicle",
-        description: "One more engraved plate and sticker set for another vehicle on your account.",
+        description: "One more engraved plate for another vehicle on your account.",
       };
 }
 
@@ -45,7 +45,7 @@ billing.get("/buy", requireAuth, async (c) => {
       <div style="font-family:var(--font-display);font-size:40px;margin-bottom:10px">${priceDisplay}</div>
       <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:30px">One-time payment &middot; ${esc(pricing.description)}</div>
       <div style="border:1px solid var(--hairline);padding:18px 20px;margin-bottom:30px">
-        <div style="font-size:12.5px;color:var(--ink-muted);line-height:1.7">Includes an engraved plate and tamper-evident stickers, posted to you, plus unlimited document storage and a public verification page for the life of the vehicle. No subscription.</div>
+        <div style="font-size:12.5px;color:var(--ink-muted);line-height:1.7">Includes one engraved plate, posted to you, plus unlimited document storage and a public verification page for the life of the vehicle. No subscription.</div>
       </div>
       <form method="post" action="/buy/checkout">
         <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">Continue to payment — ${priceDisplay}</button>
