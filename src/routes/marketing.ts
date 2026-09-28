@@ -82,6 +82,21 @@ marketing.get("/", (c) => {
       <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px">BESPOKE COACHWORK</div>
     </div>
 
+    <!-- ABOUT: merged onto the homepage itself so the nav can smooth-scroll
+         straight to it, rather than linking out to a separate page. -->
+    <div id="about" style="padding:100px 56px">
+      ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
+      <div style="max-width:680px;margin:-24px auto 0;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
+        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate carrying a unique number and a QR code, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration details, service documents, invoices and photographs. Anyone can scan the plate to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
+
+        <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
+
+        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
+
+        <p>It's a one-time purchase, not a subscription. You pay for the plate; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+      </div>
+    </div>
+
     <!-- THE MARK: dark spotlight -->
     <div id="the-mark" style="background:oklch(11% 0 0);padding:100px 56px;position:relative;overflow:hidden">
       <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
@@ -168,21 +183,6 @@ marketing.get("/", (c) => {
     <div style="background:oklch(11% 0 0);padding:110px 56px;text-align:center">
       <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-style:italic;font-size:min(34px,7vw);max-width:520px;margin:0 auto 34px">Give your build a provenance worthy of it.</div>
       <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Request a plate &mdash; from &pound;29</a>
-    </div>
-
-    <!-- ABOUT: merged onto the homepage itself so the nav can smooth-scroll
-         straight to it, rather than linking out to a separate page. -->
-    <div id="about" style="padding:100px 56px">
-      ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
-      <div style="max-width:680px;margin:-24px auto 0;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
-        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate carrying a unique number and a QR code, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration details, service documents, invoices and photographs. Anyone can scan the plate to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
-
-        <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
-
-        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
-
-        <p>It's a one-time purchase, not a subscription. You pay for the plate; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
-      </div>
     </div>
 
     <style>
