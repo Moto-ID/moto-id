@@ -228,7 +228,7 @@ export function appShell(
 <body>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 32px;border-bottom:1px solid var(--hairline)">
     <div style="display:flex;align-items:center;gap:16px">
-      <a href="/dashboard" class="wordmark">MOTO ID</a>
+      <a href="/" class="wordmark">MOTO ID</a>
       <div style="width:1px;height:14px;background:var(--hairline)"></div>
       <div class="subtle breadcrumb" style="font-size:12.5px">${breadcrumb}</div>
     </div>
