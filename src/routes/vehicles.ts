@@ -92,13 +92,13 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
 
                                                                                         vehicles.get("/register-vehicle", requireAuth, (c) => {
                                                                                           const user = c.get("user")!;
-                                                                                          if (user.vehicle_credits <= 0) return c.redirect("/buy");
+                                                                                          if (!user.unlimited_vehicles && user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({})));
                                                                                         });
 
                                                                                         vehicles.post("/register-vehicle", requireAuth, async (c) => {
                                                                                           const user = c.get("user")!;
-                                                                                          if (user.vehicle_credits <= 0) return c.redirect("/buy");
+                                                                                          if (!user.unlimited_vehicles && user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           const body = await c.req.parseBody();
                                                                                             const vehicleType = body.vehicleType === "motorcycle" ? "motorcycle" : "car";
                                                                                           const registrationNumber = String(body.registrationNumber ?? "").trim();
@@ -122,11 +122,13 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                             );
                                                                                           }
 
-                                                                                            const creditConsumed = await consumeUserCredit(c.env.DB, user.id);
-                                                                                            if (!creditConsumed) {
-                                                                                              // Credit was used up between the form loading and this submit (e.g. two
-                                                                                              // tabs, or a race with another purchase) — send them to buy another.
-                                                                                              return c.redirect("/buy");
+                                                                                            if (!user.unlimited_vehicles) {
+                                                                                              const creditConsumed = await consumeUserCredit(c.env.DB, user.id);
+                                                                                              if (!creditConsumed) {
+                                                                                                // Credit was used up between the form loading and this submit (e.g. two
+                                                                                                // tabs, or a race with another purchase) — send them to buy another.
+                                                                                                return c.redirect("/buy");
+                                                                                              }
                                                                                             }
 
                                                                                             const vehicle = await createVehicle(c.env.DB, user.id, {
@@ -158,7 +160,7 @@ function myCollectionEmptyState(): string {
                                                                                           const user = c.get("user")!;
                                                                                           const list = await getVehiclesByUser(c.env.DB, user.id);
                                                                                           if (list.length > 0) return c.redirect(`/vehicles/${list[0].id}`);
-                                                                                          if (user.vehicle_credits > 0) return c.redirect("/register-vehicle");
+                                                                                          if (user.unlimited_vehicles || user.vehicle_credits > 0) return c.redirect("/register-vehicle");
                                                                                           return c.html(appShell("My Collection — Moto ID", "My Collection", myCollectionEmptyState(), user));
                                                                                         });
 

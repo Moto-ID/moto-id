@@ -30,7 +30,7 @@ function pricingFor(existingVehicleCount: number) {
 billing.get("/buy", requireAuth, async (c) => {
   const user = c.get("user")!;
 
-  if (user.vehicle_credits > 0) {
+  if (user.unlimited_vehicles || user.vehicle_credits > 0) {
     return c.redirect("/register-vehicle");
   }
 
@@ -59,7 +59,7 @@ billing.get("/buy", requireAuth, async (c) => {
 billing.post("/buy/checkout", requireAuth, async (c) => {
   const user = c.get("user")!;
 
-  if (user.vehicle_credits > 0) {
+  if (user.unlimited_vehicles || user.vehicle_credits > 0) {
     return c.redirect("/register-vehicle");
   }
 
