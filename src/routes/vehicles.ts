@@ -266,7 +266,7 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
                                                                                                 <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap">
 
                                                                                                   <!-- SIDEBAR -->
-                                                                                                  <div style="flex:0 0 300px;display:flex;flex-direction:column;gap:20px;min-width:260px">
+                                                                                                  <div style="flex:0 1 300px;display:flex;flex-direction:column;gap:20px;min-width:0;max-width:300px">
                                                                                                     <div>
 ${photoBox(vehicle, icon, !!c.env.DOCS)}                                                                                              <div style="font-family:var(--font-display);font-size:21px;margin-bottom:2px">${esc(vehicle.make)} ${esc(vehicle.model)}</div>
                                                                                               <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:18px">${esc(subtitle || "—")}</div>
