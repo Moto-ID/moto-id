@@ -65,7 +65,7 @@ const passwordSection = `
 
                                                                                                           const body = `
                                                                                                             <div style="display:flex;gap:56px;flex-wrap:wrap">
-                                                                                                                <div style="flex:0 0 190px;display:flex;flex-direction:column;gap:2px">
+                                                                                                                <div style="flex:0 1 190px;display:flex;flex-direction:column;gap:2px;min-width:0">
                                                                                                                       <div style="font-size:13px;color:var(--ink-subtle);padding:10px 0">Profile</div>
                                                                                                                             <div style="font-size:13px;font-weight:600;color:var(--ink);padding:10px 0;border-bottom:2px solid var(--ink);width:fit-content">My Vehicles</div>
                                                                                                                                   <div style="font-size:13px;color:var(--ink-subtle);padding:10px 0">Notifications</div>
@@ -73,7 +73,7 @@ const passwordSection = `
                                                                                                                                                 <button type="submit" style="border:none;background:none;padding:0;font-size:13px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Sign out</button>
                                                                                                                                                       </form>
                                                                                                                                                           </div>
-                                                                                                                                                              <div style="flex:1 1 0;min-width:280px">
+                                                                                                                                                              <div style="flex:1 1 280px;min-width:0">
                                                                                                                                                                     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px;gap:16px;flex-wrap:wrap">
                                                                                                                                                                             <div style="font-family:var(--font-display);font-size:24px">My Vehicles</div>
                                                                                                                                                                                     <a href="/register-vehicle" class="btn btn-outline">Add a vehicle</a>
