@@ -10,6 +10,12 @@ export interface User {
     // a completed Stripe purchase — see grantCreditForCheckoutSession below) is
     // consumed by registering one vehicle. See migrations/0005_vehicle_credits.sql.
     vehicle_credits: number;
+    // When truthy (1), this account can register any number of vehicles for
+    // free — the credit check and /buy paywall are bypassed entirely and no
+    // credit is ever consumed. Off (0) for every account by default; set
+    // directly in the database for specific accounts (e.g. the business
+    // owner's own account). See migrations/0006_unlimited_vehicles.sql.
+    unlimited_vehicles: number;
     created_at: string;
 }
 
@@ -51,7 +57,7 @@ export async function createUser(db: D1Database, name: string, email: string, pa
           .prepare("INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)")
           .bind(id, name, email.toLowerCase().trim(), passwordHash)
           .run();
-    return { id, name, email, password_hash: passwordHash, vehicle_credits: 0, created_at: new Date().toISOString() };
+    return { id, name, email, password_hash: passwordHash, vehicle_credits: 0, unlimited_vehicles: 0, created_at: new Date().toISOString() };
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {
