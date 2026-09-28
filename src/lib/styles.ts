@@ -14,6 +14,13 @@ export const BASE_CSS = `
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 html{scroll-behavior:smooth}
+/* Safety net against horizontal panning on mobile: a few layout pieces size
+   themselves in px (a sidebar's flex-basis, a wide table's min-width, etc.)
+   and on a narrow-enough viewport could otherwise stretch the page a few
+   pixels wider than the screen. Everything that's meant to scroll
+   horizontally (the document table, and similar) already has its own
+   overflow-x:auto wrapper, so this only stops the outer page from panning. */
+html,body{overflow-x:hidden;max-width:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);line-height:1.6}
 a{color:var(--ink);text-decoration:none}
 h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
