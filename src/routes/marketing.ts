@@ -107,7 +107,7 @@ marketing.get("/", (c) => {
         </div>
       </div>
 
-      <!-- Real laser-marking footage -->
+      <!-- Real plate photo (swapped in for the laser-marking video, 2026-09-28) -->
       <div style="max-width:900px;margin:90px auto 0;position:relative;z-index:1;border-top:1px solid oklch(24% 0 0);padding-top:64px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center" class="two-col">
         <div>
           <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">HOW IT'S MARKED</div>
@@ -115,10 +115,8 @@ marketing.get("/", (c) => {
           <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px">Every plate and sticker is marked on our own laser, tuned to anneal the stainless steel's surface rather than just etch or print it. Annealing changes the metal's own oxide layer instead of cutting through or coating it, so the mark won't fade, flake or rust &mdash; it's part of the steel for the life of the vehicle.</div>
         </div>
         <div>
-          <video controls preload="none" poster="/media/laser-marking-poster.jpg" playsinline style="width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
-            <source src="/media/laser-marking.mp4" type="video/mp4">
-          </video>
-          <div style="font-size:11px;color:oklch(52% 0 0);margin-top:10px;text-align:center">Real footage &mdash; one of our plates being marked.</div>
+          <img src="/media/plate-example.jpg" alt="A Moto ID plate laser-marked with a Porsche 911's registration and Moto ID number, next to its QR code" style="width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
+          <div style="font-size:11px;color:oklch(52% 0 0);margin-top:10px;text-align:center">One of our plates &mdash; laser-marked, not printed.</div>
         </div>
       </div>
     </div>
