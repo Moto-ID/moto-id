@@ -20,6 +20,8 @@ import {
     declineVehicleTransfer,
     acceptVehicleTransfer,
     getOwnershipHistory,
+    listAllDocumentsForVehicle,
+    deleteVehicle,
     type Vehicle,
 } from "../lib/db";
 import { sendOrderNotificationEmail, sendOwnershipTransferEmail } from "../lib/email";
@@ -482,6 +484,7 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                       ? `<div style="border:1px solid var(--hairline);padding:14px 16px;font-size:12px;color:var(--ink-muted);line-height:1.6">Transfer pending to <strong style="color:var(--ink)">${esc(pendingTransfer.to_email)}</strong><form method="post" action="/vehicles/${vehicle.id}/transfer/cancel" style="margin-top:8px"><button type="submit" style="border:none;background:none;padding:0;font-size:12px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Cancel transfer</button></form></div>`
                                                                                                                       : `<a href="/vehicles/${vehicle.id}/transfer" class="btn btn-outline" style="text-align:center">Transfer ownership</a>`
                                                                                                                     }
+                                                                                                                    <a href="/vehicles/${vehicle.id}/remove" style="display:block;text-align:center;font-size:12.5px;color:oklch(45% 0.18 25);text-decoration:underline;text-underline-offset:3px;margin-top:4px">Remove vehicle</a>
                                                                                                                           </div>
                                                                                                                       
                                                                                                                           <!-- MAIN -->
@@ -613,6 +616,82 @@ vehicles.post("/vehicles/:id/transfer/cancel", requireAuth, async (c) => {
     if (!vehicle) return c.notFound();
     await cancelPendingTransferForVehicle(c.env.DB, vehicle.id, user.id);
     return c.redirect(`/vehicles/${vehicle.id}`);
+});
+
+// --- Remove vehicle -----------------------------------------------------
+//
+// Permanently deletes a vehicle and everything filed under it. D1 cascades
+// the documents/scans/transfer/history rows automatically (see the foreign
+// keys in migrations/0001_init.sql and 0008_vehicle_transfers.sql); R2
+// objects (the cover photo and every uploaded document) are not cascaded
+// and are deleted here, best-effort, before the D1 row goes. Blocked while
+// a transfer is pending so a vehicle mid-handover can't vanish out from
+// under the incoming owner.
+
+function removeVehiclePage(vehicle: Vehicle, pending: boolean): string {
+    const blocked = pending
+        ? `<div class="error">This vehicle has a pending ownership transfer. Cancel the transfer before removing the vehicle.</div>`
+        : "";
+    return `
+    <div style="width:100%;max-width:460px">
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:10px">Remove vehicle</div>
+      <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:24px">This permanently deletes this vehicle's Moto ID record, including every service document, invoice and photo on file. Its Moto ID number will stop resolving on the public verify page. This cannot be undone, and no vehicle credit is refunded.</div>
+      ${blocked}
+      ${
+          pending
+              ? `<a href="/vehicles/${vehicle.id}" class="btn btn-outline" style="display:block;text-align:center">&larr; Back to vehicle</a>`
+              : `<form method="post" action="/vehicles/${vehicle.id}/remove">
+                   <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px;background:oklch(45% 0.18 25)">Permanently remove this vehicle</button>
+                 </form>
+                 <a href="/vehicles/${vehicle.id}" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">&larr; Back to vehicle</a>`
+      }
+    </div>`;
+}
+
+vehicles.get("/vehicles/:id/remove", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+    const pending = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
+    return c.html(
+        appShell(
+            "Remove vehicle — Moto ID",
+            `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Remove vehicle`,
+            removeVehiclePage(vehicle, !!pending),
+            user
+        )
+    );
+});
+
+vehicles.post("/vehicles/:id/remove", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+
+    const pending = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
+    if (pending) return c.redirect(`/vehicles/${vehicle.id}/remove`);
+
+    if (c.env.DOCS) {
+        if (vehicle.photo_r2_key) {
+            try {
+                await c.env.DOCS.delete(vehicle.photo_r2_key);
+            } catch {
+                // best-effort — a leftover R2 object is harmless once the vehicle row is gone
+            }
+        }
+        const docs = await listAllDocumentsForVehicle(c.env.DB, vehicle.id);
+        for (const doc of docs) {
+            try {
+                await c.env.DOCS.delete(doc.r2_key);
+            } catch {
+                // best-effort, same as above
+            }
+        }
+    }
+
+    await deleteVehicle(c.env.DB, vehicle.id);
+    return c.redirect(`/dashboard`);
 });
 
 function historyPage(vehicle: Vehicle, history: Awaited<ReturnType<typeof getOwnershipHistory>>, originalOwnerName: string): string {

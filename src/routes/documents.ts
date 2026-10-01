@@ -112,8 +112,8 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
           <form method="post" action="/vehicles/${vehicle.id}/folder/${folder}/upload" enctype="multipart/form-data" style="margin-bottom:32px;display:flex;flex-direction:column;gap:12px">
             <label style="border:1px dashed var(--hairline-strong);padding:26px;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--ink-subtle);cursor:pointer">
               ${UPLOAD_ICON}
-              <span style="font-size:13px">Click to choose a file &mdash; PDF, JPG or PNG</span>
-              <input type="file" name="file" required style="display:none" onchange="this.form.requestSubmit()">
+              <span style="font-size:13px">Click to choose files &mdash; PDF, JPG or PNG (you can select more than one)</span>
+              <input type="file" name="file" multiple required style="display:none" onchange="this.form.requestSubmit()">
             </label>
             <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-muted);cursor:pointer">
               <input type="checkbox" name="isPublic">
@@ -153,27 +153,33 @@ documents.post("/vehicles/:id/folder/:folder/upload", requireAuth, async (c) => 
           return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}`);
     }
 
-    const body = await c.req.parseBody();
-    const file = body.file;
-    if (!(file instanceof File)) {
+    // { all: true } makes a <input multiple> submit come through as an array
+    // even when the visitor picked just one file (then it's a single File,
+    // not an array) — handle both shapes.
+    const body = await c.req.parseBody({ all: true });
+    const rawFiles = body.file;
+    const files = (Array.isArray(rawFiles) ? rawFiles : [rawFiles]).filter((f): f is File => f instanceof File && f.size > 0);
+    if (files.length === 0) {
           return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}`);
     }
     const isPublic = body.isPublic === "on";
 
-    const r2Key = `${vehicle.id}/${folder}/${crypto.randomUUID()}-${file.name}`;
-    await c.env.DOCS.put(r2Key, await file.arrayBuffer(), {
-          httpMetadata: { contentType: file.type || undefined },
-    });
+    for (const file of files) {
+          const r2Key = `${vehicle.id}/${folder}/${crypto.randomUUID()}-${file.name}`;
+          await c.env.DOCS.put(r2Key, await file.arrayBuffer(), {
+                httpMetadata: { contentType: file.type || undefined },
+          });
 
-    await addDocument(c.env.DB, vehicle.id, {
-          folder,
-          filename: file.name,
-          r2Key,
-          contentType: file.type || null,
-          sizeBytes: file.size || null,
-          addedBy: user.name,
-          isPublic,
-    });
+          await addDocument(c.env.DB, vehicle.id, {
+                folder,
+                filename: file.name,
+                r2Key,
+                contentType: file.type || null,
+                sizeBytes: file.size || null,
+                addedBy: user.name,
+                isPublic,
+          });
+    }
 
     return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}`);
 });
