@@ -367,6 +367,27 @@ export async function recentActivity(db: D1Database, vehicleId: string, limit = 
     return results;
 }
 
+// All documents for a vehicle, across every folder, no limit — used when
+// removing a vehicle to find every R2 object that needs deleting alongside
+// the D1 rows (which cascade automatically; R2 does not).
+export async function listAllDocumentsForVehicle(db: D1Database, vehicleId: string): Promise<Document[]> {
+    const { results } = await db
+          .prepare("SELECT * FROM documents WHERE vehicle_id = ?")
+          .bind(vehicleId)
+          .all<Document>();
+    return results;
+}
+
+// Permanently removes a vehicle. `documents`, `verification_scans`,
+// `vehicle_transfers` and `ownership_history` rows all cascade via their
+// ON DELETE CASCADE foreign keys — only the vehicles row itself needs
+// deleting here. Callers are responsible for deleting the corresponding R2
+// objects first (this function only touches D1) and for refusing the
+// delete while a transfer is pending.
+export async function deleteVehicle(db: D1Database, vehicleId: string): Promise<void> {
+    await db.prepare("DELETE FROM vehicles WHERE id = ?").bind(vehicleId).run();
+}
+
 export async function recordScan(db: D1Database, vehicleId: string): Promise<void> {
     await db
           .prepare("INSERT INTO verification_scans (id, vehicle_id) VALUES (?, ?)")
