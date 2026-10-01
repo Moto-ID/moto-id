@@ -41,14 +41,38 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
   ${opts.error ? `<div class="error">${esc(opts.error)}</div>` : ""}
 
         <form method="post" action="/register-vehicle">
-    <div style="display:flex;border:1px solid var(--ink);margin-bottom:30px">
-    <label style="flex:1 1 0;text-align:center;padding:12px;font-size:12.5px;letter-spacing:0.04em;cursor:pointer;${carActive ? "background:var(--ink);color:var(--bg)" : "color:var(--ink-muted)"}">
+    <div style="display:flex;border:1px solid var(--ink);margin-bottom:30px" id="vehicleTypeToggle">
+    <label class="vtype-label" style="flex:1 1 0;text-align:center;padding:12px;font-size:12.5px;letter-spacing:0.04em;cursor:pointer;${carActive ? "background:var(--ink);color:var(--bg)" : "color:var(--ink-muted)"}">
     <input type="radio" name="vehicleType" value="car" ${carActive ? "checked" : ""} style="display:none">Car
             </label>
-    <label style="flex:1 1 0;text-align:center;padding:12px;font-size:12.5px;letter-spacing:0.04em;cursor:pointer;border-left:1px solid var(--ink);${!carActive ? "background:var(--ink);color:var(--bg)" : "color:var(--ink-muted)"}">
+    <label class="vtype-label" style="flex:1 1 0;text-align:center;padding:12px;font-size:12.5px;letter-spacing:0.04em;cursor:pointer;border-left:1px solid var(--ink);${!carActive ? "background:var(--ink);color:var(--bg)" : "color:var(--ink-muted)"}">
     <input type="radio" name="vehicleType" value="motorcycle" ${!carActive ? "checked" : ""} style="display:none">Motorcycle
             </label>
           </div>
+          <script>
+            // The Car/Motorcycle toggle's highlight above was previously baked
+            // in only from the server-rendered initial state (carActive), with
+            // nothing to update it on click — the hidden radio's checked state
+            // did actually change when you clicked "Motorcycle", but the label
+            // never re-styled to show it, so the toggle looked unresponsive.
+            // Fixed by re-applying the highlight on the radio's own "change"
+            // event, which fires for both a direct click and a keyboard toggle.
+            (function () {
+              var toggle = document.getElementById('vehicleTypeToggle');
+              if (!toggle) return;
+              var labels = Array.prototype.slice.call(toggle.querySelectorAll('.vtype-label'));
+              labels.forEach(function (label) {
+                var input = label.querySelector('input[type="radio"]');
+                input.addEventListener('change', function () {
+                  labels.forEach(function (l) {
+                    var active = l === label;
+                    l.style.background = active ? 'var(--ink)' : '';
+                    l.style.color = active ? 'var(--bg)' : 'var(--ink-muted)';
+                  });
+                });
+              });
+            })();
+          </script>
 
           <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:34px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
