@@ -115,6 +115,15 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
 .grid-4 > *{background:var(--bg);padding:22px}
 @media (max-width:900px){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* My Collection vehicle cards — image tile + details, same hairline-grid
+   pattern as .grid-4 but with no padding on the tile itself (the card's own
+   markup handles image vs. text-block spacing individually). */
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.grid-3 > *{background:var(--bg)}
+@media (max-width:900px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.grid-3{grid-template-columns:1fr}}
+.vcard-thumb{height:150px;background:var(--bg-panel);border-bottom:1px solid var(--hairline);overflow:hidden}
 .panel:hover, .row:hover, .vrow:hover{background:var(--bg-panel)}
 .tab:hover{color:var(--ink)!important}
 
