@@ -31,6 +31,16 @@ export interface Vehicle {
     year: number | null;
     colour: string | null;
     photo_r2_key: string | null;
+    // Shipping address for the physical plate, captured as part of the
+    // register-vehicle form itself (see migrations/0007_vehicle_shipping.sql).
+    // Always populated for any vehicle created after that migration — null
+    // only for vehicles that existed before it.
+    ship_name: string | null;
+    ship_address_line1: string | null;
+    ship_address_line2: string | null;
+    ship_city: string | null;
+    ship_postal_code: string | null;
+    ship_country: string | null;
     created_at: string;
 }
 
@@ -157,15 +167,28 @@ export async function createVehicle(
           model: string;
           year: number | null;
           colour: string | null;
+          shipName: string;
+          shipAddressLine1: string;
+          shipAddressLine2: string | null;
+          shipCity: string;
+          shipPostalCode: string;
+          shipCountry: string;
     }
   ): Promise<Vehicle> {
     const id = newId();
     const motoIdNumber = await generateUniqueMotoIdNumber(db);
+    const shipName = input.shipName.trim();
+    const shipAddressLine1 = input.shipAddressLine1.trim();
+    const shipAddressLine2 = input.shipAddressLine2?.trim() || null;
+    const shipCity = input.shipCity.trim();
+    const shipPostalCode = input.shipPostalCode.toUpperCase().trim();
+    const shipCountry = input.shipCountry.trim();
     await db
           .prepare(
             `INSERT INTO vehicles
-             (id, user_id, moto_id_number, vehicle_type, registration_number, vin, make, model, year, colour)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             (id, user_id, moto_id_number, vehicle_type, registration_number, vin, make, model, year, colour,
+              ship_name, ship_address_line1, ship_address_line2, ship_city, ship_postal_code, ship_country)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .bind(
             id,
@@ -177,7 +200,13 @@ export async function createVehicle(
             input.make.trim(),
             input.model.trim(),
             input.year,
-            input.colour
+            input.colour,
+            shipName,
+            shipAddressLine1,
+            shipAddressLine2,
+            shipCity,
+            shipPostalCode,
+            shipCountry
           )
           .run();
     return {
@@ -192,6 +221,12 @@ export async function createVehicle(
           year: input.year,
           colour: input.colour,
         photo_r2_key: null,
+        ship_name: shipName,
+        ship_address_line1: shipAddressLine1,
+        ship_address_line2: shipAddressLine2,
+        ship_city: shipCity,
+        ship_postal_code: shipPostalCode,
+        ship_country: shipCountry,
         created_at: new Date().toISOString(),
     };
 }
