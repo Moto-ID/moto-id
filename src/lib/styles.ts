@@ -124,11 +124,19 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 
 /* Footer */
 .footer{border-top:1px solid var(--hairline);padding:48px 56px 20px}
-.footer .cols{display:flex;gap:56px}
+/* flex-wrap is load-bearing here, not cosmetic: .cols is reused for both the
+   outer brand/links split and the nested STUDIO/COMPANY/LEGAL group, and
+   without it neither row can break onto multiple lines on a narrow phone —
+   flex items default to min-width:auto, so the row just keeps growing past
+   the viewport and drags the whole page into horizontal scroll with it
+   (the html{overflow-x:hidden} safety net above only catches overflow that
+   can actually shrink to fit; a non-wrapping row like this can't). */
+.footer .cols{display:flex;gap:56px;flex-wrap:wrap}
 .footer .col-title{font-size:10px;color:var(--ink-subtle);letter-spacing:0.1em;margin-bottom:14px}
 .footer .col-links{display:flex;flex-direction:column;gap:9px;font-size:12.5px;color:var(--ink-muted)}
 .footer .col-links a{color:inherit}
 .footer .col-links a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+@media (max-width:720px){.footer{padding:40px 20px 20px}.footer .cols{gap:32px}}
 
 /* Photo upload */
 .photo-upload{position:relative;overflow:hidden;cursor:pointer}
