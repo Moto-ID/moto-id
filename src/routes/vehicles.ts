@@ -296,13 +296,50 @@ function myCollectionEmptyState(): string {
     </div>`;
 }
 
-                                                                                        vehicles.get("/dashboard", requireAuth, async (c) => {
-                                                                                          const user = c.get("user")!;
-                                                                                          const list = await getVehiclesByUser(c.env.DB, user.id);
-                                                                                          if (list.length > 0) return c.redirect(`/vehicles/${list[0].id}`);
-                                                                                          if (user.unlimited_vehicles || user.vehicle_credits > 0) return c.redirect("/register-vehicle");
-                                                                                          return c.html(appShell("My Collection — Moto ID", "My Collection", myCollectionEmptyState(), user));
-                                                                                        });
+// A single vehicle tile for the "My Collection" grid: thumbnail (the same
+// cover photo set via photoBox on the vehicle detail page, read-only here)
+// plus make/model, registration and Moto ID number. The whole tile links to
+// the vehicle's own detail page.
+function vehicleCard(vehicle: Vehicle): string {
+  const icon = vehicle.vehicle_type === "motorcycle" ? BIKE_ICON : CAR_ICON;
+  const thumb = vehicle.photo_r2_key
+    ? `<img src="/vehicles/${vehicle.id}/photo" alt="${esc(vehicle.make)} ${esc(vehicle.model)}" style="width:100%;height:100%;object-fit:cover;display:block">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${icon}</div>`;
+  const subtitle = [vehicle.year, vehicle.colour].filter(Boolean).join(" · ");
+
+  return `
+    <a href="/vehicles/${vehicle.id}" class="panel" style="display:block">
+      <div class="vcard-thumb">${thumb}</div>
+      <div style="padding:18px 20px">
+        <div style="font-weight:600;font-size:14.5px;margin-bottom:2px">${esc(vehicle.make)} ${esc(vehicle.model)}</div>
+        <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:14px">${esc(subtitle || "—")}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-muted)">
+          <span>${esc(vehicle.registration_number)}</span>
+          <span>No.&nbsp;${esc(vehicle.moto_id_number)}</span>
+        </div>
+      </div>
+    </a>`;
+}
+
+vehicles.get("/dashboard", requireAuth, async (c) => {
+  const user = c.get("user")!;
+  const list = await getVehiclesByUser(c.env.DB, user.id);
+
+  if (list.length === 0) {
+    if (user.unlimited_vehicles || user.vehicle_credits > 0) return c.redirect("/register-vehicle");
+    return c.html(appShell("My Collection — Moto ID", "My Collection", myCollectionEmptyState(), user));
+  }
+
+  const body = `
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px;gap:16px;flex-wrap:wrap">
+      <div style="font-family:var(--font-display);font-size:26px">My Collection</div>
+      <a href="/register-vehicle" class="btn btn-outline">+ Add a vehicle</a>
+    </div>
+    <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${list.length} vehicle${list.length === 1 ? "" : "s"} registered to your account</div>
+    <div class="grid-3">${list.map(vehicleCard).join("")}</div>`;
+
+  return c.html(appShell("My Collection — Moto ID", "My Collection", body, user));
+});
 
 function photoBox(vehicle: Vehicle, icon: string, uploadEnabled: boolean): string {
     const inner = vehicle.photo_r2_key
