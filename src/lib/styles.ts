@@ -116,13 +116,19 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .grid-4 > *{background:var(--bg);padding:22px}
 @media (max-width:900px){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* My Collection vehicle cards — image tile + details, same hairline-grid
-   pattern as .grid-4 but with no padding on the tile itself (the card's own
-   markup handles image vs. text-block spacing individually). */
-.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
-.grid-3 > *{background:var(--bg)}
-@media (max-width:900px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:560px){.grid-3{grid-template-columns:1fr}}
+/* My Collection vehicle cards — image tile + details. Unlike .grid-4 (always
+   used with a fixed, evenly-divisible tile count), the vehicle count here is
+   arbitrary, so a CSS Grid with a background-plus-gap hairline trick leaves
+   unfilled trailing cells showing the grid container's own background —
+   a large blank-looking grey rectangle whenever the count isn't a multiple
+   of the column count (e.g. 4 vehicles in a 3-column grid). Flexbox with
+   per-card borders avoids this entirely: there are never more "cells" than
+   there are actual cards, so an incomplete last row just leaves plain page
+   background, not a stray colored box. */
+.grid-3{display:flex;flex-wrap:wrap;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline)}
+.grid-3 > *{flex:0 0 33.333%;min-width:0;box-sizing:border-box;background:var(--bg);border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+@media (max-width:900px){.grid-3 > *{flex-basis:50%}}
+@media (max-width:560px){.grid-3 > *{flex-basis:100%}}
 .vcard-thumb{height:150px;background:var(--bg-panel);border-bottom:1px solid var(--hairline);overflow:hidden}
 .panel:hover, .row:hover, .vrow:hover{background:var(--bg-panel)}
 .tab:hover{color:var(--ink)!important}
