@@ -430,8 +430,11 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                       
                                                                                                                           <!-- MAIN -->
                                                                                                                           <div style="flex:1 1 0;min-width:0">
-                                                                                                                      <div style="display:flex;gap:30px;border-bottom:1px solid var(--hairline);margin-bottom:28px;overflow-x:auto">
+                                                                                                                      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hairline);margin-bottom:28px;overflow-x:auto">
+                                                                                                                      <div style="display:flex;gap:30px">
                                                                                                                       <div style="padding-bottom:14px;font-size:13px;font-weight:600;color:var(--ink);border-bottom:2px solid var(--ink);white-space:nowrap">Overview</div>
+                                                                                                                            </div>
+                                                                                                                      <a href="/register-vehicle" style="font-size:12.5px;color:var(--ink);border-bottom:1px solid var(--ink);white-space:nowrap;padding-bottom:14px">+ Add a vehicle</a>
                                                                                                                             </div>
                                                                                                                       
                                                                                                                             <div class="grid-4" style="margin-bottom:36px">
