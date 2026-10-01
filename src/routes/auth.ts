@@ -20,15 +20,17 @@ import { getCookie } from "hono/cookie";
 
 export const auth = new Hono<Env>();
 
-function signupForm(opts: { name?: string; email?: string; error?: string }) {
+function signupForm(opts: { name?: string; email?: string; error?: string; next?: string; notice?: string }) {
     return `
     <div style="width:100%;max-width:380px">
       <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">STEP 1 OF 2 &mdash; CREATE YOUR ACCOUNT</div>
       <div style="font-family:var(--font-display);font-size:30px;line-height:1.25;margin-bottom:30px">Begin your<br>vehicle's record.</div>
 
+    ${opts.notice ? `<div style="font-size:13px;color:var(--ink-muted);background:var(--bg-panel);padding:12px 14px;margin-bottom:20px">${esc(opts.notice)}</div>` : ""}
     ${opts.error ? `<div class="error">${esc(opts.error)}</div>` : ""}
 
     <form method="post" action="/signup">
+      ${opts.next ? `<input type="hidden" name="next" value="${esc(opts.next)}">` : ""}
       <div class="field">
         <label>FULL NAME</label>
         <input type="text" name="name" value="${esc(opts.name ?? "")}" required autocomplete="name">
@@ -45,12 +47,14 @@ function signupForm(opts: { name?: string; email?: string; error?: string }) {
     </form>
 
     <div style="font-size:11.5px;color:var(--ink-subtle);text-align:center;line-height:1.6">By continuing you agree to Moto ID's Terms and Privacy Policy.</div>
-      <div style="text-align:center;margin-top:28px;font-size:13px;color:var(--ink-muted)">Already have an account? <a href="/login" class="text-link">Sign in</a></div>
+      <div style="text-align:center;margin-top:28px;font-size:13px;color:var(--ink-muted)">Already have an account? <a href="/login${opts.next ? `?next=${encodeURIComponent(opts.next)}` : ""}" class="text-link">Sign in</a></div>
     </div>`;
   }
 
 auth.get("/signup", (c) => {
-    return c.html(authShell("Create your account — Moto ID", signupForm({})));
+    const next = c.req.query("next");
+    const email = c.req.query("email");
+    return c.html(authShell("Create your account — Moto ID", signupForm({ next, email })));
   });
 
 auth.post("/signup", async (c) => {
@@ -58,12 +62,13 @@ auth.post("/signup", async (c) => {
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim();
     const password = String(body.password ?? "");
+    const next = typeof body.next === "string" && body.next.startsWith("/") ? body.next : undefined;
 
     if (!name || !email || password.length < 8) {
           return c.html(
                   authShell(
                             "Create your account — Moto ID",
-                            signupForm({ name, email, error: "Please fill in every field — passwords need at least 8 characters." })
+                            signupForm({ name, email, next, error: "Please fill in every field — passwords need at least 8 characters." })
                           ),
                   400
                 );
@@ -74,7 +79,7 @@ auth.post("/signup", async (c) => {
           return c.html(
                   authShell(
                             "Create your account — Moto ID",
-                            signupForm({ name, email, error: "An account already exists for that email. Try signing in instead." })
+                            signupForm({ name, email, next, error: "An account already exists for that email. Try signing in instead." })
                           ),
                   400
                 );
@@ -89,7 +94,9 @@ auth.post("/signup", async (c) => {
     // Signing up is free — /dashboard shows "My Collection" and, since a new
     // account has no vehicle credits yet, prompts them to get a Moto ID
     // before they can register a vehicle (see routes/vehicles.ts + billing.ts).
-    return c.redirect("/dashboard");
+    // "next" is used by the ownership-transfer accept flow (routes/vehicles.ts)
+    // to send a brand-new buyer straight back to the invitation they clicked.
+    return c.redirect(next ?? "/dashboard");
   });
 
 function loginForm(opts: { email?: string; error?: string; next?: string; notice?: string }) {

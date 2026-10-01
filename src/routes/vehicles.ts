@@ -3,6 +3,7 @@ import type { Env } from "../types";
 import { authShell, appShell } from "../lib/layout";
 import { esc } from "../lib/html";
 import { requireAuth } from "../lib/auth";
+import { newId } from "../lib/crypto";
 import {
     createVehicle,
     getVehiclesByUser,
@@ -11,9 +12,17 @@ import {
     recentActivity,
     setVehiclePhoto,
     consumeUserCredit,
+    getUserById,
+    createVehicleTransfer,
+    getPendingTransferForVehicle,
+    getValidVehicleTransfer,
+    cancelPendingTransferForVehicle,
+    declineVehicleTransfer,
+    acceptVehicleTransfer,
+    getOwnershipHistory,
     type Vehicle,
 } from "../lib/db";
-import { sendOrderNotificationEmail } from "../lib/email";
+import { sendOrderNotificationEmail, sendOwnershipTransferEmail } from "../lib/email";
 
 export const vehicles = new Hono<Env>();
 
@@ -369,6 +378,12 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
 
                                                                                             const counts = await countDocumentsByFolder(c.env.DB, vehicle.id);
                                                                                             const activity = await recentActivity(c.env.DB, vehicle.id, 6);
+                                                                                            const pendingTransfer = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
+                                                                                            const ownershipHistory = await getOwnershipHistory(c.env.DB, vehicle.id);
+                                                                                            const ownerCount = 1 + ownershipHistory.length;
+                                                                                            const ownedSince = ownershipHistory.length > 0
+                                                                                              ? ownershipHistory[ownershipHistory.length - 1].transferred_at
+                                                                                              : vehicle.created_at;
 
                                                                                               const icon = vehicle.vehicle_type === "motorcycle" ? BIKE_ICON : CAR_ICON;
                                                                                             const subtitle = [vehicle.year, vehicle.colour].filter(Boolean).join(" · ");
@@ -426,6 +441,10 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                             
                                                                                                             <a href="/verify/${esc(vehicle.moto_id_number)}" target="_blank" class="btn btn-outline" style="text-align:center">View public record</a>
                                                                                                                     <a href="/settings" class="btn btn-outline" style="text-align:center">Manage vehicle</a>
+                                                                                                                    ${pendingTransfer
+                                                                                                                      ? `<div style="border:1px solid var(--hairline);padding:14px 16px;font-size:12px;color:var(--ink-muted);line-height:1.6">Transfer pending to <strong style="color:var(--ink)">${esc(pendingTransfer.to_email)}</strong><form method="post" action="/vehicles/${vehicle.id}/transfer/cancel" style="margin-top:8px"><button type="submit" style="border:none;background:none;padding:0;font-size:12px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Cancel transfer</button></form></div>`
+                                                                                                                      : `<a href="/vehicles/${vehicle.id}/transfer" class="btn btn-outline" style="text-align:center">Transfer ownership</a>`
+                                                                                                                    }
                                                                                                                           </div>
                                                                                                                       
                                                                                                                           <!-- MAIN -->
@@ -441,11 +460,11 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/service`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><polyline points="8,12 9.5,13.5 12,10.5"/><line x1="14" y1="12.2" x2="16" y2="12.2"/><line x1="8" y1="16.2" x2="16" y2="16.2"/></svg>`, "Service Documents", counts.service, "")}
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/invoice`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M6 3h12v18l-2.5-1.6L13 21l-1-1.6L10 21l-2.5-1.6L6 21z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`, "Invoices", counts.invoice, "")}
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/photo`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.4"/></svg>`, "Photos", counts.photo, "")}
-                                                                                                                              <div class="panel" style="padding:22px;background:var(--bg)">
+                                                                                                                              <a href="/vehicles/${vehicle.id}/history" class="panel" style="padding:22px;background:var(--bg);display:block">
                                                                                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="8.5"/><polyline points="12,7.5 12,12 15.2,14"/></svg>
                                                                                                                                           <div style="font-weight:600;font-size:13.5px;margin-top:16px;margin-bottom:4px">Ownership History</div>
-                                                                                                                                <div style="font-size:11.5px;color:var(--ink-subtle)">1 owner &middot; since ${new Date(vehicle.created_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</div>
-                                                                                                                                        </div>
+                                                                                                                                <div style="font-size:11.5px;color:var(--ink-subtle)">${ownerCount} owner${ownerCount === 1 ? "" : "s"} &middot; since ${new Date(ownedSince).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</div>
+                                                                                                                                        </a>
                                                                                                                                       </div>
                                                                                                                                 
                                                                                                                                 <div style="border:1px solid var(--hairline)">
@@ -458,4 +477,271 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                                 
                                                                                                                                 return c.html(appShell(`${vehicle.make} ${vehicle.model} — Moto ID`, `<a href="/dashboard">My Collection</a> / ${esc(vehicle.registration_number)}`, body, user));
                                                                                                                                 });
-                                                                                                                                
+
+// --- Ownership transfer ------------------------------------------------
+//
+// Lets the current owner hand a vehicle to a new owner (e.g. it's been
+// sold) — free, per the business plan. The current owner starts it from
+// the vehicle page by email address; the buyer gets an emailed link and
+// must sign in or create an account using that exact email before they
+// can accept, at which point the vehicle (and its whole document/photo
+// history) moves to their account. See the ownership-transfer functions
+// in src/lib/db.ts for the data model.
+
+function transferForm(vehicle: Vehicle, opts: { error?: string } = {}): string {
+    return `
+    <div style="width:100%;max-width:440px">
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:10px">Transfer ownership</div>
+      <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">If you've sold this vehicle, transfer its Moto ID record &mdash; including its full service history, invoices and photos &mdash; to the new owner. Transfers are free. Enter the new owner's email and we'll send them a link to accept; nothing changes unless they do, and you can cancel any time before then.</div>
+      ${opts.error ? `<div class="error">${esc(opts.error)}</div>` : ""}
+      <form method="post" action="/vehicles/${vehicle.id}/transfer">
+        <div class="field">
+          <label>NEW OWNER'S EMAIL</label>
+          <input type="email" name="toEmail" required autocomplete="email">
+        </div>
+        <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">Send transfer invitation</button>
+      </form>
+      <a href="/vehicles/${vehicle.id}" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">&larr; Back to vehicle</a>
+    </div>`;
+}
+
+vehicles.get("/vehicles/:id/transfer", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+    const pending = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
+    if (pending) return c.redirect(`/vehicles/${vehicle.id}`);
+    return c.html(
+        appShell(
+            "Transfer ownership — Moto ID",
+            `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Transfer ownership`,
+            transferForm(vehicle),
+            user
+        )
+    );
+});
+
+vehicles.post("/vehicles/:id/transfer", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+
+    const breadcrumb = `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Transfer ownership`;
+    const showError = (error: string, status: 400 | 500) =>
+        c.html(appShell("Transfer ownership — Moto ID", breadcrumb, transferForm(vehicle, { error }), user), status);
+
+    const existingPending = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
+    if (existingPending) return c.redirect(`/vehicles/${vehicle.id}`);
+
+    const body = await c.req.parseBody();
+    const toEmail = String(body.toEmail ?? "").trim();
+
+    if (!toEmail) return showError("Please enter the new owner's email.", 400);
+    if (toEmail.toLowerCase() === user.email.toLowerCase()) {
+        return showError("You can't transfer a vehicle to your own account.", 400);
+    }
+
+    const token = newId();
+    await createVehicleTransfer(c.env.DB, vehicle.id, user.id, toEmail, token);
+
+    const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
+    try {
+        await sendOwnershipTransferEmail(c.env, {
+            toEmail,
+            fromName: user.name,
+            vehicle: {
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                registrationNumber: vehicle.registration_number,
+                motoIdNumber: vehicle.moto_id_number,
+            },
+            acceptUrl: `${origin}/transfer/${token}`,
+        });
+    } catch (err) {
+        console.error("Failed to send ownership transfer email:", err instanceof Error ? err.message : String(err));
+        // Undo the pending row so the owner isn't stuck unable to retry (the
+        // "one pending transfer per vehicle" check above would otherwise block it).
+        await cancelPendingTransferForVehicle(c.env.DB, vehicle.id, user.id);
+        return showError("We couldn't send the invitation email right now. Please try again shortly.", 500);
+    }
+
+    return c.redirect(`/vehicles/${vehicle.id}`);
+});
+
+vehicles.post("/vehicles/:id/transfer/cancel", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+    await cancelPendingTransferForVehicle(c.env.DB, vehicle.id, user.id);
+    return c.redirect(`/vehicles/${vehicle.id}`);
+});
+
+function historyPage(vehicle: Vehicle, history: Awaited<ReturnType<typeof getOwnershipHistory>>, originalOwnerName: string): string {
+    const rows = [
+        { label: `Registered by ${esc(originalOwnerName)}`, date: vehicle.created_at },
+        ...history.map((h) => ({ label: `Transferred to ${esc(h.to_name)}`, date: h.transferred_at })),
+    ];
+    return `
+    <div style="max-width:520px">
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:4px">Ownership history</div>
+      <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
+      <div style="border:1px solid var(--hairline)">
+        ${rows
+            .map(
+                (r, i) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;${i < rows.length - 1 ? "border-bottom:1px solid var(--hairline)" : ""}">
+            <div style="font-size:13.5px">${r.label}</div>
+            <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-subtle);white-space:nowrap">${new Date(r.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+          </div>`
+            )
+            .join("")}
+      </div>
+      <a href="/vehicles/${vehicle.id}" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted);margin-top:24px">&larr; Back to vehicle</a>
+    </div>`;
+}
+
+vehicles.get("/vehicles/:id/history", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await requireOwnedVehicle(c);
+    if (!vehicle) return c.notFound();
+    const history = await getOwnershipHistory(c.env.DB, vehicle.id);
+    const originalOwnerName = history.length > 0 ? history[0].from_name ?? "a previous owner" : user.name;
+    return c.html(
+        appShell(
+            "Ownership history — Moto ID",
+            `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Ownership history`,
+            historyPage(vehicle, history, originalOwnerName),
+            user
+        )
+    );
+});
+
+function transferInvalidPage(): string {
+    return `
+    <div style="width:100%;max-width:420px">
+      <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">OWNERSHIP TRANSFER</div>
+      <div style="font-family:var(--font-display);font-size:26px;line-height:1.25;margin-bottom:24px">This invitation<br>isn't available.</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">This transfer link is invalid, has expired, or has already been used. If you're expecting a vehicle, ask the seller to send a new invitation.</div>
+      <a href="/dashboard" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">Go to My Collection</a>
+    </div>`;
+}
+
+function transferInviteForm(opts: {
+    token: string;
+    vehicle: Vehicle;
+    fromName: string;
+    state: "needs_login" | "wrong_account" | "ready";
+    toEmail: string;
+    currentEmail?: string;
+}): string {
+    const v = opts.vehicle;
+    const vehicleSummary = `${esc(v.make)} ${esc(v.model)}${v.year ? ` (${v.year})` : ""}`;
+    const card = `
+      <div style="border:1px solid var(--hairline);padding:18px 20px;margin-bottom:28px;background:var(--bg-panel)">
+        <div style="font-weight:600;font-size:14.5px;margin-bottom:4px">${vehicleSummary}</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-subtle)">${esc(v.registration_number)} &middot; No. ${esc(v.moto_id_number)}</div>
+      </div>`;
+    const intro = `<div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:22px"><strong style="color:var(--ink)">${esc(opts.fromName)}</strong> wants to transfer this Moto ID record to you. It's free, and includes the full service history, invoices and photos already on file.</div>`;
+    const header = `
+      <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">OWNERSHIP TRANSFER</div>
+      <div style="font-family:var(--font-display);font-size:26px;line-height:1.25;margin-bottom:24px">You've been offered<br>a vehicle.</div>`;
+
+    if (opts.state === "needs_login") {
+        const next = encodeURIComponent(`/transfer/${opts.token}`);
+        return `
+        <div style="width:100%;max-width:420px">
+          ${header}
+          ${intro}
+          ${card}
+          <div style="font-size:13px;color:var(--ink-muted);margin-bottom:20px">Sign in or create an account with <strong style="color:var(--ink)">${esc(opts.toEmail)}</strong> to accept.</div>
+          <a href="/login?next=${next}" class="btn btn-solid" style="display:block;text-align:center;border:none;margin-bottom:12px">Sign in</a>
+          <a href="/signup?next=${next}&email=${encodeURIComponent(opts.toEmail)}" class="btn btn-outline" style="display:block;text-align:center">Create an account</a>
+        </div>`;
+    }
+
+    if (opts.state === "wrong_account") {
+        return `
+        <div style="width:100%;max-width:420px">
+          ${header}
+          ${intro}
+          ${card}
+          <div style="font-size:13px;color:var(--ink-muted);margin-bottom:20px">This invitation was sent to <strong style="color:var(--ink)">${esc(opts.toEmail)}</strong>, but you're signed in as ${esc(opts.currentEmail ?? "")}. Sign out and sign in with the correct email to accept it.</div>
+          <form method="post" action="/logout">
+            <button type="submit" class="btn btn-outline" style="width:100%">Sign out</button>
+          </form>
+        </div>`;
+    }
+
+    return `
+    <div style="width:100%;max-width:420px">
+      ${header}
+      ${intro}
+      ${card}
+      <form method="post" action="/transfer/${opts.token}/accept" style="margin-bottom:12px">
+        <button type="submit" class="btn btn-solid" style="width:100%;border:none">Accept transfer</button>
+      </form>
+      <form method="post" action="/transfer/${opts.token}/decline">
+        <button type="submit" style="width:100%;border:none;background:none;padding:10px;font-size:13px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Decline</button>
+      </form>
+    </div>`;
+}
+
+vehicles.get("/transfer/:token", async (c) => {
+    const token = c.req.param("token");
+    const transfer = await getValidVehicleTransfer(c.env.DB, token);
+    if (!transfer) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
+
+    const vehicle = await getVehicleById(c.env.DB, transfer.vehicle_id);
+    const fromUser = await getUserById(c.env.DB, transfer.from_user_id);
+    if (!vehicle || !fromUser) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
+
+    const user = c.get("user");
+    const state = !user ? "needs_login" : user.email.toLowerCase() !== transfer.to_email.toLowerCase() ? "wrong_account" : "ready";
+
+    return c.html(
+        authShell(
+            "Ownership transfer — Moto ID",
+            transferInviteForm({ token, vehicle, fromName: fromUser.name, state, toEmail: transfer.to_email, currentEmail: user?.email })
+        )
+    );
+});
+
+vehicles.post("/transfer/:token/accept", async (c) => {
+    const token = c.req.param("token");
+    const user = c.get("user");
+    if (!user) return c.redirect(`/login?next=${encodeURIComponent(`/transfer/${token}`)}`);
+
+    const transfer = await getValidVehicleTransfer(c.env.DB, token);
+    if (!transfer) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
+
+    if (user.email.toLowerCase() !== transfer.to_email.toLowerCase()) {
+        const vehicle = await getVehicleById(c.env.DB, transfer.vehicle_id);
+        const fromUser = await getUserById(c.env.DB, transfer.from_user_id);
+        if (!vehicle || !fromUser) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
+        return c.html(
+            authShell(
+                "Ownership transfer — Moto ID",
+                transferInviteForm({ token, vehicle, fromName: fromUser.name, state: "wrong_account", toEmail: transfer.to_email, currentEmail: user.email })
+            ),
+            403
+        );
+    }
+
+    await acceptVehicleTransfer(c.env.DB, transfer, user);
+    return c.redirect(`/vehicles/${transfer.vehicle_id}`);
+});
+
+vehicles.post("/transfer/:token/decline", async (c) => {
+    const token = c.req.param("token");
+    const user = c.get("user");
+    if (!user) return c.redirect(`/login?next=${encodeURIComponent(`/transfer/${token}`)}`);
+
+    const transfer = await getValidVehicleTransfer(c.env.DB, token);
+    if (transfer && user.email.toLowerCase() === transfer.to_email.toLowerCase()) {
+        await declineVehicleTransfer(c.env.DB, token);
+    }
+    return c.redirect("/dashboard");
+});
+
