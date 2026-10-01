@@ -13,6 +13,7 @@ import {
     consumeUserCredit,
     type Vehicle,
 } from "../lib/db";
+import { sendOrderNotificationEmail } from "../lib/email";
 
 export const vehicles = new Hono<Env>();
 
@@ -80,6 +81,33 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                       </div>
                                                                                     </div>
 
+  <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin:6px 0 18px">SHIP THE PLATE TO</div>
+  <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:30px">
+    <div class="field" style="margin-bottom:0">
+      <label>FULL NAME</label>
+      <input type="text" name="shipName" value="${esc(v.shipName ?? "")}" required>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>ADDRESS LINE 1</label>
+      <input type="text" name="shipAddressLine1" value="${esc(v.shipAddressLine1 ?? "")}" required>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>ADDRESS LINE 2 (OPTIONAL)</label>
+      <input type="text" name="shipAddressLine2" value="${esc(v.shipAddressLine2 ?? "")}">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div class="field" style="margin-bottom:0">
+        <label>TOWN / CITY</label>
+        <input type="text" name="shipCity" value="${esc(v.shipCity ?? "")}" required>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>POSTCODE</label>
+        <input type="text" name="shipPostalCode" class="mono" value="${esc(v.shipPostalCode ?? "")}" required style="text-transform:uppercase">
+      </div>
+    </div>
+    <div style="font-size:11.5px;color:var(--ink-subtle)">We currently post within the United Kingdom only.</div>
+  </div>
+
                                                                               <div style="border:1px solid var(--hairline);padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:30px">
                                                                               <div style="font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle)">Your Moto ID number is assigned the moment you submit this form, and held for the life of the vehicle.</div>
                                                                                       </div>
@@ -93,7 +121,7 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                         vehicles.get("/register-vehicle", requireAuth, (c) => {
                                                                                           const user = c.get("user")!;
                                                                                           if (!user.unlimited_vehicles && user.vehicle_credits <= 0) return c.redirect("/buy");
-                                                                                          return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({})));
+                                                                                          return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({ values: { shipName: user.name } })));
                                                                                         });
 
                                                                                         vehicles.post("/register-vehicle", requireAuth, async (c) => {
@@ -109,13 +137,51 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                           const colour = String(body.colour ?? "").trim() || null;
                                                                                           const year = yearRaw ? parseInt(yearRaw, 10) : null;
 
+                                                                                          // Shipping address for the physical plate — the "order form" fields,
+                                                                                          // collected right alongside the vehicle details so one submit captures
+                                                                                          // everything needed to both mint the Moto ID and fulfil the order.
+                                                                                          const shipName = String(body.shipName ?? "").trim();
+                                                                                          const shipAddressLine1 = String(body.shipAddressLine1 ?? "").trim();
+                                                                                          const shipAddressLine2 = String(body.shipAddressLine2 ?? "").trim() || null;
+                                                                                          const shipCity = String(body.shipCity ?? "").trim();
+                                                                                          const shipPostalCode = String(body.shipPostalCode ?? "").trim();
+                                                                                          const shipCountry = "United Kingdom"; // UK-only for now — see the note on the form itself.
+
+                                                                                          const formValues = {
+                                                                                            vehicleType,
+                                                                                            registrationNumber,
+                                                                                            vin,
+                                                                                            make,
+                                                                                            model,
+                                                                                            year: yearRaw,
+                                                                                            colour: colour ?? "",
+                                                                                            shipName,
+                                                                                            shipAddressLine1,
+                                                                                            shipAddressLine2: shipAddressLine2 ?? "",
+                                                                                            shipCity,
+                                                                                            shipPostalCode,
+                                                                                          };
+
                                                                                           if (!registrationNumber || !vin || !make || !model) {
                                                                                             return c.html(
                                                                                               authShell(
                                                                                                         "Register your vehicle — Moto ID",
                                                                                                 registerVehicleForm({
                                                                                                             error: "Please fill in registration number, VIN, make and model.",
-                                                                                                  values: { vehicleType, registrationNumber, vin, make, model, year: yearRaw, colour: colour ?? "" },
+                                                                                                  values: formValues,
+                                                                                                })
+                                                                                              ),
+                                                                                                    400
+                                                                                            );
+                                                                                          }
+
+                                                                                          if (!shipName || !shipAddressLine1 || !shipCity || !shipPostalCode) {
+                                                                                            return c.html(
+                                                                                              authShell(
+                                                                                                        "Register your vehicle — Moto ID",
+                                                                                                registerVehicleForm({
+                                                                                                            error: "Please fill in the shipping address for your plate.",
+                                                                                                  values: formValues,
                                                                                                 })
                                                                                               ),
                                                                                                     400
@@ -139,7 +205,48 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                                   model,
                                                                                                   year,
                                                                                                   colour,
+                                                                                                  shipName,
+                                                                                                  shipAddressLine1,
+                                                                                                  shipAddressLine2,
+                                                                                                  shipCity,
+                                                                                                  shipPostalCode,
+                                                                                                  shipCountry,
                                                                                             });
+
+                                                                                            // Automated order notification — every registration is a physical plate
+                                                                                            // order, so Adam needs the customer's shipping address, the vehicle
+                                                                                            // details, and the QR-code URL for the plate itself. A failure here must
+                                                                                            // never block the customer's own flow (e.g. Resend not configured yet),
+                                                                                            // so it's caught and logged rather than surfaced to them.
+                                                                                            const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
+                                                                                            try {
+                                                                                              await sendOrderNotificationEmail(c.env, {
+                                                                                                customerName: user.name,
+                                                                                                customerEmail: user.email,
+                                                                                                vehicle: {
+                                                                                                  vehicleType,
+                                                                                                  make: vehicle.make,
+                                                                                                  model: vehicle.model,
+                                                                                                  year: vehicle.year,
+                                                                                                  colour: vehicle.colour,
+                                                                                                  registrationNumber: vehicle.registration_number,
+                                                                                                  vin: vehicle.vin,
+                                                                                                  motoIdNumber: vehicle.moto_id_number,
+                                                                                                },
+                                                                                                shipping: {
+                                                                                                  name: shipName,
+                                                                                                  addressLine1: shipAddressLine1,
+                                                                                                  addressLine2: shipAddressLine2,
+                                                                                                  city: shipCity,
+                                                                                                  postalCode: shipPostalCode,
+                                                                                                  country: shipCountry,
+                                                                                                },
+                                                                                                verifyUrl: `${origin}/verify/${vehicle.moto_id_number}`,
+                                                                                                paidOrder: !user.unlimited_vehicles,
+                                                                                              });
+                                                                                            } catch (err) {
+                                                                                              console.error("Failed to send order notification email:", err instanceof Error ? err.message : String(err));
+                                                                                            }
 
                                                                                           return c.redirect(`/vehicles/${vehicle.id}`);
                                                                                         });
