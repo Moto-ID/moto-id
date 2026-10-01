@@ -418,3 +418,127 @@ export async function grantCreditForCheckoutSession(
     }
     return grantedNow;
 }
+
+// --- Ownership transfer -----------------------------------------------------
+//
+// A vehicle's current owner can hand it to a new owner (e.g. the vehicle was
+// sold) by emailing an accept link to the buyer's address. It's free (see
+// business-plan.md Section 6: "a record that becomes harder to pass on at
+// exactly the point it matters most would undermine the whole point of the
+// product"), and the buyer must sign in or create an account using the exact
+// email the transfer was sent to before they can accept it — a bare,
+// unguessable token in the link already proves inbox access, but matching
+// the signed-in account's email too stops a transfer being claimed by
+// whichever account happens to be signed in when the link is opened.
+// See migrations/0008_vehicle_transfers.sql.
+
+const VEHICLE_TRANSFER_TTL_DAYS = 14;
+
+export interface VehicleTransfer {
+    token: string;
+    vehicle_id: string;
+    from_user_id: string;
+    to_email: string;
+    status: "pending" | "accepted" | "declined" | "cancelled";
+    created_at: string;
+    expires_at: string;
+    resolved_at: string | null;
+}
+
+export interface OwnershipHistoryEntry {
+    id: string;
+    vehicle_id: string;
+    from_user_id: string | null;
+    from_name: string | null;
+    to_user_id: string;
+    to_name: string;
+    transferred_at: string;
+}
+
+export async function createVehicleTransfer(
+    db: D1Database,
+    vehicleId: string,
+    fromUserId: string,
+    toEmail: string,
+    token: string
+): Promise<void> {
+    const expires = new Date(Date.now() + VEHICLE_TRANSFER_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    await db
+          .prepare(
+                `INSERT INTO vehicle_transfers (token, vehicle_id, from_user_id, to_email, expires_at)
+                 VALUES (?, ?, ?, ?, ?)`
+          )
+          .bind(token, vehicleId, fromUserId, toEmail.toLowerCase().trim(), expires)
+          .run();
+}
+
+/** The vehicle's current unresolved transfer, if any — a vehicle can only have one pending transfer at a time. */
+export async function getPendingTransferForVehicle(db: D1Database, vehicleId: string): Promise<VehicleTransfer | null> {
+    const row = await db
+          .prepare(
+                `SELECT * FROM vehicle_transfers
+                 WHERE vehicle_id = ? AND status = 'pending' AND expires_at > datetime('now')
+                 ORDER BY created_at DESC LIMIT 1`
+          )
+          .bind(vehicleId)
+          .first<VehicleTransfer>();
+    return row ?? null;
+}
+
+export async function getValidVehicleTransfer(db: D1Database, token: string): Promise<VehicleTransfer | null> {
+    const row = await db
+          .prepare(
+                `SELECT * FROM vehicle_transfers WHERE token = ? AND status = 'pending' AND expires_at > datetime('now')`
+          )
+          .bind(token)
+          .first<VehicleTransfer>();
+    return row ?? null;
+}
+
+/** Only the seller who started it can cancel their own vehicle's pending transfer. */
+export async function cancelPendingTransferForVehicle(db: D1Database, vehicleId: string, fromUserId: string): Promise<void> {
+    await db
+          .prepare(
+                `UPDATE vehicle_transfers SET status = 'cancelled', resolved_at = datetime('now')
+                 WHERE vehicle_id = ? AND from_user_id = ? AND status = 'pending'`
+          )
+          .bind(vehicleId, fromUserId)
+          .run();
+}
+
+export async function declineVehicleTransfer(db: D1Database, token: string): Promise<void> {
+    await db
+          .prepare(`UPDATE vehicle_transfers SET status = 'declined', resolved_at = datetime('now') WHERE token = ?`)
+          .bind(token)
+          .run();
+}
+
+/**
+ * Completes a pending transfer: moves the vehicle to its new owner, logs the
+ * change in ownership_history, and marks the transfer row accepted — as one
+ * D1 batch so a failure partway through can never leave the vehicle pointing
+ * at one owner while the transfer itself still reads "pending".
+ */
+export async function acceptVehicleTransfer(db: D1Database, transfer: VehicleTransfer, toUser: User): Promise<void> {
+    const fromUser = await getUserById(db, transfer.from_user_id);
+    await db.batch([
+          db.prepare("UPDATE vehicles SET user_id = ? WHERE id = ?").bind(toUser.id, transfer.vehicle_id),
+          db
+            .prepare(`UPDATE vehicle_transfers SET status = 'accepted', resolved_at = datetime('now') WHERE token = ?`)
+            .bind(transfer.token),
+          db
+            .prepare(
+                  `INSERT INTO ownership_history (id, vehicle_id, from_user_id, from_name, to_user_id, to_name)
+                   VALUES (?, ?, ?, ?, ?, ?)`
+            )
+            .bind(newId(), transfer.vehicle_id, transfer.from_user_id, fromUser?.name ?? null, toUser.id, toUser.name),
+    ]);
+}
+
+export async function getOwnershipHistory(db: D1Database, vehicleId: string): Promise<OwnershipHistoryEntry[]> {
+    const { results } = await db
+          .prepare(`SELECT * FROM ownership_history WHERE vehicle_id = ? ORDER BY transferred_at ASC`)
+          .bind(vehicleId)
+          .all<OwnershipHistoryEntry>();
+    return results;
+}

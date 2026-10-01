@@ -136,3 +136,45 @@ export async function sendOrderNotificationEmail(
         html,
   });
 }
+
+/**
+ * Sent to the buyer's email when a vehicle's current owner starts an
+ * ownership transfer (e.g. the vehicle has been sold). The link takes them
+ * to an accept/decline page; they must sign in or create an account using
+ * this exact email address before the transfer can be accepted — see
+ * acceptVehicleTransfer in src/lib/db.ts.
+ */
+export async function sendOwnershipTransferEmail(
+    env: Bindings,
+    opts: {
+          toEmail: string;
+          fromName: string;
+          vehicle: { make: string; model: string; year: number | null; registrationNumber: string; motoIdNumber: string };
+          acceptUrl: string;
+    }
+): Promise<void> {
+    const { vehicle: v } = opts;
+    const vehicleSummary = [v.year, v.make, v.model].filter(Boolean).join(" ");
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6"><strong>${esc(opts.fromName)}</strong> wants to transfer ownership of their Moto ID record to you:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0 28px;background:#f7f7f7">
+        <tr><td style="padding:14px 16px">
+          <div style="font-weight:600;margin-bottom:4px">${esc(vehicleSummary)}</div>
+          <div style="color:#666;font-family:monospace;font-size:12.5px">${esc(v.registrationNumber)} &middot; No. ${esc(v.motoIdNumber)}</div>
+        </td></tr>
+      </table>
+      <p style="margin:28px 0">
+        <a href="${opts.acceptUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">Review the transfer</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">Ownership transfers are free. You'll need to sign in or create a Moto ID account with this email address (${esc(opts.toEmail)}) to accept it. This link expires in 14 days. If you weren't expecting this, you can safely ignore it — nothing changes unless you accept.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: opts.toEmail,
+        subject: `${opts.fromName} wants to transfer a Moto ID vehicle to you`,
+        html,
+  });
+}
