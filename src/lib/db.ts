@@ -16,6 +16,11 @@ export interface User {
     // directly in the database for specific accounts (e.g. the business
     // owner's own account). See migrations/0006_unlimited_vehicles.sql.
     unlimited_vehicles: number;
+    // Opt-in only, off (0) by default for every account — see
+    // migrations/0009_notification_prefs.sql. Governs optional future
+    // marketing/product-update emails only; transactional emails (password
+    // resets, ownership-transfer invitations) are never gated by this flag.
+    marketing_opt_in: number;
     created_at: string;
 }
 
@@ -67,7 +72,16 @@ export async function createUser(db: D1Database, name: string, email: string, pa
           .prepare("INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)")
           .bind(id, name, email.toLowerCase().trim(), passwordHash)
           .run();
-    return { id, name, email, password_hash: passwordHash, vehicle_credits: 0, unlimited_vehicles: 0, created_at: new Date().toISOString() };
+    return {
+        id,
+        name,
+        email,
+        password_hash: passwordHash,
+        vehicle_credits: 0,
+        unlimited_vehicles: 0,
+        marketing_opt_in: 0,
+        created_at: new Date().toISOString(),
+    };
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {
@@ -109,6 +123,17 @@ export async function deleteSession(db: D1Database, token: string): Promise<void
 
 export async function updateUserPassword(db: D1Database, userId: string, passwordHash: string): Promise<void> {
     await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(passwordHash, userId).run();
+}
+
+export async function updateUserProfile(db: D1Database, userId: string, name: string, email: string): Promise<void> {
+    await db
+          .prepare("UPDATE users SET name = ?, email = ? WHERE id = ?")
+          .bind(name, email.toLowerCase().trim(), userId)
+          .run();
+}
+
+export async function setMarketingOptIn(db: D1Database, userId: string, optIn: boolean): Promise<void> {
+    await db.prepare("UPDATE users SET marketing_opt_in = ? WHERE id = ?").bind(optIn ? 1 : 0, userId).run();
 }
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
