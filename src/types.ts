@@ -15,6 +15,12 @@ export interface Bindings {
   STRIPE_SECRET_KEY?: string;
   // Set via `wrangler secret put STRIPE_WEBHOOK_SECRET` — the signing secret for the /webhooks/stripe endpoint.
   STRIPE_WEBHOOK_SECRET?: string;
+  // Non-secret: where to send the "new order" notification email for every
+  // completed vehicle registration (see sendOrderNotificationEmail in
+  // src/lib/email.ts). Defaults to adam_mcgivern@hotmail.com in code if unset
+  // — only set this as a plain [vars] entry in wrangler.toml if that address
+  // ever needs to change.
+  ORDER_NOTIFICATION_EMAIL?: string;
 }
 
 export interface Variables {
