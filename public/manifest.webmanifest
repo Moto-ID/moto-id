@@ -2,7 +2,7 @@
   "name": "Moto ID",
   "short_name": "Moto ID",
   "description": "Digital provenance for exceptional cars and motorcycles.",
-  "start_url": "/",
+  "start_url": "/?launch=app",
   "scope": "/",
   "id": "/",
   "display": "standalone",
