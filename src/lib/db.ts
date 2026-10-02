@@ -64,7 +64,14 @@ export interface Document {
     created_at: string;
 }
 
-const SESSION_TTL_DAYS = 30;
+// Sessions use a sliding 30-minute idle window, not a fixed lifetime: every
+// authenticated request pushes the expiry forward another 30 minutes (see
+// getSessionUser below), so someone actively using the app is never signed
+// out mid-session — only after walking away for half an hour or more. The
+// session cookie itself (src/lib/auth.ts) is set for 30 days purely as a
+// carrier for the token; this server-side expiry is the real gate on
+// whether a visit is still signed in.
+const SESSION_IDLE_MINUTES = 30;
 
 export async function createUser(db: D1Database, name: string, email: string, passwordHash: string): Promise<User> {
     const id = newId();
@@ -98,7 +105,7 @@ export async function getUserById(db: D1Database, id: string): Promise<User | nu
 }
 
 export async function createSession(db: D1Database, userId: string, token: string): Promise<void> {
-    const expires = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const expires = new Date(Date.now() + SESSION_IDLE_MINUTES * 60 * 1000).toISOString();
     await db
           .prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
           .bind(token, userId, expires)
@@ -114,6 +121,21 @@ export async function getSessionUser(db: D1Database, token: string): Promise<Use
           )
           .bind(token)
           .first<User>();
+
+    if (row) {
+        // Sliding window: this request counts as activity, so push the
+        // session's expiry another 30 minutes out. Best-effort — if this
+        // write fails for some reason, the session simply expires on its
+        // last-set schedule instead of being extended, which is a safe
+        // failure mode (errs toward signing out, not staying in forever).
+        const newExpires = new Date(Date.now() + SESSION_IDLE_MINUTES * 60 * 1000).toISOString();
+        try {
+            await db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").bind(newExpires, token).run();
+        } catch {
+            // best-effort — see comment above
+        }
+    }
+
     return row ?? null;
 }
 
