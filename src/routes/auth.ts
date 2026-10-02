@@ -129,6 +129,13 @@ function loginForm(opts: { email?: string; error?: string; next?: string; notice
   }
 
 auth.get("/login", (c) => {
+    // A visitor who's still signed in (e.g. tapping the new "APP" shortcut
+    // next to the logo while already logged in on this device) should land
+    // straight in the app, not be shown a login form they don't need.
+    if (c.get("user")) {
+          const next = c.req.query("next");
+          return c.redirect(next && next.startsWith("/") ? next : "/dashboard");
+        }
     const next = c.req.query("next");
     const notice = c.req.query("reset") === "1" ? "Your password has been reset. Sign in with your new password." : undefined;
     return c.html(authShell("Sign in — Moto ID", loginForm({ next, notice })));
