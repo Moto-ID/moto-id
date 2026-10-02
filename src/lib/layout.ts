@@ -35,7 +35,10 @@ export function marketingShell(title: string, body: string, opts?: { activeNav?:
 <head>${pageHead(title)}</head>
 <body>
   <div class="nav" id="siteNav">
-    <a href="/" class="wordmark">MOTO ID</a>
+    <div class="brand">
+      <a href="/" class="wordmark">MOTO ID</a>
+      <a href="/login" class="app-pill" aria-label="Open the Moto ID app">APP</a>
+    </div>
     <div class="links" id="navLinks">${navLinksHtml}<span class="nav-underline" id="navUnderline"></span></div>
     <div class="right">
       <a href="/login">SIGN IN</a>

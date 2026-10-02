@@ -51,6 +51,9 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:22px 56px;border-bottom:1px solid var(--hairline);background:var(--bg);transition:box-shadow 0.2s ease}
 .nav.is-scrolled{box-shadow:0 8px 24px -20px rgba(0,0,0,0.35)}
 .nav .wordmark{font-weight:600;font-size:12px;letter-spacing:0.2em}
+.nav .brand{display:flex;align-items:center;gap:10px;flex:none}
+.nav .app-pill{font-size:9.5px;font-weight:600;letter-spacing:0.14em;color:var(--ink-muted);border:1px solid var(--hairline);border-radius:20px;padding:3px 9px;white-space:nowrap;transition:color .15s ease,border-color .15s ease}
+.nav .app-pill:hover, .nav .app-pill:active{color:var(--ink);border-color:var(--ink)}
 .nav .links{position:relative;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .nav .links a{font-size:11px;letter-spacing:0.05em;color:var(--ink-muted);white-space:nowrap}
 .nav .links a:hover, .nav .links a.active{color:var(--ink)}
