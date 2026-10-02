@@ -43,6 +43,20 @@ const PORTAL_VIDEO_SECTION = `
 `;
 
 marketing.get("/", (c) => {
+  // The installed PWA's manifest start_url is "/?launch=app" (not plain "/")
+  // specifically so this one case — the app being freshly opened from a
+  // phone's home screen — can be told apart from an ordinary visit to the
+  // marketing homepage, including a signed-in visitor clicking the "MOTO ID"
+  // wordmark from inside the app's own topbar (src/lib/layout.ts), which
+  // deliberately still leads here with no query string. A signed-in visitor
+  // relaunching the app from their home screen goes straight to "My
+  // Collection" instead of the marketing page they've already seen; a
+  // signed-out relaunch (or anyone just visiting the homepage normally)
+  // falls through to the ordinary marketing page below, unchanged.
+  if (c.req.query("launch") === "app" && c.get("user")) {
+    return c.redirect("/dashboard");
+  }
+
   // Signed-in visitors go straight to checkout; signed-out visitors sign up
   // first (a free account) and land on "My Collection", where the same
   // purchase prompt is waiting for them.
