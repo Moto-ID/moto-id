@@ -21,6 +21,14 @@ export interface Bindings {
   // — only set this as a plain [vars] entry in wrangler.toml if that address
   // ever needs to change.
   ORDER_NOTIFICATION_EMAIL?: string;
+  // DVSA MOT History API — all four set via `wrangler secret put` (or the
+  // Cloudflare dashboard), never committed to the repo. See src/lib/dvsa.ts.
+  // DVSA_TOKEN_URL is the tenant-specific Microsoft Entra ID token endpoint
+  // from DVSA's "you've been granted access" email (not a fixed URL).
+  DVSA_CLIENT_ID?: string;
+  DVSA_CLIENT_SECRET?: string;
+  DVSA_API_KEY?: string;
+  DVSA_TOKEN_URL?: string;
 }
 
 export interface Variables {
