@@ -572,6 +572,7 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
                                                                                             const pendingTransfer = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
                                                                                             const ownershipHistory = await getOwnershipHistory(c.env.DB, vehicle.id);
                                                                                             const mot = await getMotTestsSafely(c.env.DB, vehicle.id);
+                                                                                            const mileageReadingCount = countMileageReadings(mot);
                                                                                             const ownerCount = 1 + ownershipHistory.length;
                                                                                             const ownedSince = ownershipHistory.length > 0
                                                                                               ? ownershipHistory[ownershipHistory.length - 1].transferred_at
@@ -657,7 +658,7 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                       <a href="/register-vehicle" style="font-size:12.5px;color:var(--ink);border-bottom:1px solid var(--ink);white-space:nowrap;padding-bottom:14px">+ Add a vehicle</a>
                                                                                                                             </div>
                                                                                                                       
-                                                                                                                            <div class="grid-4" style="margin-bottom:36px">
+                                                                                                                            <div class="tile-grid" style="margin-bottom:36px">
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/service`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><polyline points="8,12 9.5,13.5 12,10.5"/><line x1="14" y1="12.2" x2="16" y2="12.2"/><line x1="8" y1="16.2" x2="16" y2="16.2"/></svg>`, "Service Documents", counts.service, "")}
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/invoice`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M6 3h12v18l-2.5-1.6L13 21l-1-1.6L10 21l-2.5-1.6L6 21z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>`, "Invoices", counts.invoice, "")}
                                                                                                                               ${folderCard(`/vehicles/${vehicle.id}/folder/photo`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.4"/></svg>`, "Photos", counts.photo, "")}
@@ -667,6 +668,11 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                                 <div style="font-size:11.5px;color:var(--ink-subtle)">${ownerCount} owner${ownerCount === 1 ? "" : "s"} &middot; since ${new Date(ownedSince).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</div>
                                                                                                                                         </a>
                                                                                                                                       ${folderCard(`/vehicles/${vehicle.id}/mot-history`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z"/><path d="M8.5 12.5 11 15l5-6"/></svg>`, "MOT History", mot.length, mot.length ? `last checked ${vehicle.mot_last_synced_at ? new Date(vehicle.mot_last_synced_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : ""}` : "")}
+                                                                                                                                      <a href="/vehicles/${vehicle.id}/mileage-history" class="panel" style="padding:22px;background:var(--bg);display:block">
+                                                                                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polyline points="4,16 9,10 13,13 20,5"/><polyline points="14,5 20,5 20,11"/></svg>
+                                                                                                                                                  <div style="font-weight:600;font-size:13.5px;margin-top:16px;margin-bottom:4px">Mileage History</div>
+                                                                                                                                        <div style="font-size:11.5px;color:var(--ink-subtle)">${mileageReadingCount >= 2 ? `${mileageReadingCount} readings` : "Not enough data yet"}</div>
+                                                                                                                                                </a>
                                                                                                                                       </div>
                                                                                                                                 
                                                                                                                                 <div style="border:1px solid var(--hairline)">
@@ -948,6 +954,14 @@ function motTestCard(test: MotTestRow, defects: MotDefectRow[]): string {
   </div>`;
 }
 
+// Shared with the "Mileage History" tile's subtitle on the vehicle overview
+// page, so both places agree on exactly what counts as a usable reading —
+// the same filter mileageChart() itself applies before deciding whether it
+// has enough points to draw a trend.
+function countMileageReadings(tests: MotTestRow[]): number {
+  return tests.filter((t) => t.odometer_value !== null && t.completed_date && !Number.isNaN(new Date(t.completed_date as string).getTime())).length;
+}
+
 // A simple time-scaled SVG line chart of odometer readings across every
 // test that has one — no charting library needed for a handful of points
 // rendered server-side. Returns a placeholder message instead of a chart
@@ -1098,6 +1112,37 @@ function motHistoryPage(vehicle: Vehicle, tests: MotTestRow[], defectsByTest: Ma
     </div>`;
 }
 
+// A focused view of just the mileage trend — the same chart shown partway
+// down the full MOT History page, for anyone who just wants the graph
+// without scrolling past (or loading) the individual test-record cards.
+function mileageHistoryPage(vehicle: Vehicle, tests: MotTestRow[]): string {
+  const synced = vehicle.mot_last_synced_at
+    ? `Last checked with the DVSA ${formatMotDate(vehicle.mot_last_synced_at)}`
+    : "Not yet checked with the DVSA";
+
+  return `
+    <div style="max-width:720px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:6px">
+        <div>
+          <div style="font-family:var(--font-display);font-size:24px;margin-bottom:6px">Mileage history</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
+        </div>
+        <form method="post" action="/vehicles/${vehicle.id}/mot-history/refresh">
+          <input type="hidden" name="redirect" value="/vehicles/${vehicle.id}/mileage-history">
+          <button type="submit" class="btn btn-outline" style="white-space:nowrap">Refresh MOT history</button>
+        </form>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-subtle);margin-bottom:28px">${esc(synced)}</div>
+
+      ${mileageChart(tests)}
+
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:8px;align-items:center">
+        <a href="/vehicles/${vehicle.id}/mot-history" style="font-size:13px;color:var(--ink-muted)">View full MOT history &rarr;</a>
+        <a href="/vehicles/${vehicle.id}" style="font-size:13px;color:var(--ink-muted)">&larr; Back to vehicle</a>
+      </div>
+    </div>`;
+}
+
 vehicles.get("/vehicles/:id/mot-history", requireAuth, async (c) => {
   const user = c.get("user")!;
   const vehicle = await requireOwnedVehicle(c);
@@ -1119,6 +1164,21 @@ vehicles.get("/vehicles/:id/mot-history", requireAuth, async (c) => {
   );
 });
 
+vehicles.get("/vehicles/:id/mileage-history", requireAuth, async (c) => {
+  const user = c.get("user")!;
+  const vehicle = await requireOwnedVehicle(c);
+  if (!vehicle) return c.notFound();
+  const tests = await getMotTestsSafely(c.env.DB, vehicle.id);
+  return c.html(
+    appShell(
+      "Mileage history — Moto ID",
+      `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Mileage history`,
+      mileageHistoryPage(vehicle, tests),
+      user
+    )
+  );
+});
+
 vehicles.post("/vehicles/:id/mot-history/refresh", requireAuth, async (c) => {
   const vehicle = await requireOwnedVehicle(c);
   if (!vehicle) return c.notFound();
@@ -1132,7 +1192,13 @@ vehicles.post("/vehicles/:id/mot-history/refresh", requireAuth, async (c) => {
     // already on file), and gets logged so it's visible in `wrangler tail`.
     console.error("DVSA manual refresh failed:", err instanceof Error ? err.message : String(err));
   }
-  return c.redirect(`/vehicles/${vehicle.id}/mot-history`);
+  // Return to whichever page the refresh was triggered from (MOT History or
+  // the narrower Mileage History view) rather than always the former —
+  // validated against this same vehicle so a form can't be used to redirect
+  // somewhere else entirely.
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  const redirectTarget = typeof body.redirect === "string" && body.redirect.startsWith(`/vehicles/${vehicle.id}/`) ? body.redirect : `/vehicles/${vehicle.id}/mot-history`;
+  return c.redirect(redirectTarget);
 });
 
 function transferInvalidPage(): string {
