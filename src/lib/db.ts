@@ -35,6 +35,12 @@ export interface Vehicle {
     model: string;
     year: number | null;
     colour: string | null;
+    // Populated from the DVSA MOT History API — see migrations/0010_dvsa_mot_history.sql
+    // and src/lib/dvsa.ts. All three are null until the first successful
+    // lookup for this vehicle (at registration, or via a manual refresh).
+    fuel_type: string | null;
+    mot_due_date: string | null;
+    mot_last_synced_at: string | null;
     photo_r2_key: string | null;
     // Shipping address for the physical plate, captured as part of the
     // register-vehicle form itself (see migrations/0007_vehicle_shipping.sql).
@@ -248,7 +254,7 @@ export async function createVehicle(
             input.model.trim(),
             input.year,
             input.colour,
-            shipName,
+          shipName,
             shipAddressLine1,
             shipAddressLine2,
             shipCity,
@@ -267,6 +273,9 @@ export async function createVehicle(
           model: input.model,
           year: input.year,
           colour: input.colour,
+        fuel_type: null,
+        mot_due_date: null,
+        mot_last_synced_at: null,
         photo_r2_key: null,
         ship_name: shipName,
         ship_address_line1: shipAddressLine1,
@@ -609,4 +618,146 @@ export async function getOwnershipHistory(db: D1Database, vehicleId: string): Pr
           .bind(vehicleId)
           .all<OwnershipHistoryEntry>();
     return results;
+}
+
+// --- DVSA MOT history --------------------------------------------------
+//
+// See migrations/0010_dvsa_mot_history.sql and src/lib/dvsa.ts. Synced on
+// vehicle registration and on demand via the "Refresh MOT history" action
+// (src/routes/vehicles.ts) — never automatically in the background, since
+// every sync is a billed-against-quota call to DVSA's API.
+
+export interface MotTestRow {
+    id: string;
+    vehicle_id: string;
+    mot_test_number: string;
+    completed_date: string | null;
+    expiry_date: string | null;
+    test_result: string | null;
+    odometer_value: number | null;
+    odometer_unit: string | null;
+    odometer_result_type: string | null;
+    data_source: string | null;
+    created_at: string;
+}
+
+export interface MotDefectRow {
+    id: string;
+    mot_test_id: string;
+    text: string;
+    type: string | null;
+    dangerous: number;
+}
+
+/**
+ * Replaces a vehicle's stored vehicle-level DVSA fields and upserts its MOT
+ * test history (keyed on DVSA's own mot_test_number, so re-running this is
+ * idempotent rather than growing duplicate rows). Defects for a test are
+ * deleted and re-inserted on every sync — cheap, and avoids having to diff
+ * DVSA's defect wording ourselves. Runs as one D1 batch so a vehicle can
+ * never end up with its MOT fields updated but no test rows (or vice
+ * versa) if something fails partway through.
+ */
+export async function syncMotHistoryForVehicle(
+    db: D1Database,
+    vehicleId: string,
+    input: {
+          fuelType: string | null;
+          motDueDate: string | null;
+          tests: Array<{
+                motTestNumber: string;
+                completedDate: string | null;
+                expiryDate: string | null;
+                testResult: string | null;
+                odometerValue: number | null;
+                odometerUnit: string | null;
+                odometerResultType: string | null;
+                dataSource: string | null;
+                defects: Array<{ text: string; type: string | null; dangerous: boolean }>;
+          }>;
+    }
+  ): Promise<void> {
+    const statements = [
+          db
+                .prepare(
+                      `UPDATE vehicles SET fuel_type = ?, mot_due_date = ?, mot_last_synced_at = datetime('now') WHERE id = ?`
+                )
+                .bind(input.fuelType, input.motDueDate, vehicleId),
+    ];
+
+    for (const test of input.tests) {
+          const testId = newId();
+          statements.push(
+                db
+                      .prepare(
+                            `INSERT INTO mot_tests
+                             (id, vehicle_id, mot_test_number, completed_date, expiry_date, test_result, odometer_value, odometer_unit, odometer_result_type, data_source)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT (vehicle_id, mot_test_number) DO UPDATE SET
+                               completed_date = excluded.completed_date,
+                               expiry_date = excluded.expiry_date,
+                               test_result = excluded.test_result,
+                               odometer_value = excluded.odometer_value,
+                               odometer_unit = excluded.odometer_unit,
+                               odometer_result_type = excluded.odometer_result_type,
+                               data_source = excluded.data_source`
+                      )
+                      .bind(
+                            testId,
+                            vehicleId,
+                            test.motTestNumber,
+                            test.completedDate,
+                            test.expiryDate,
+                            test.testResult,
+                            test.odometerValue,
+                            test.odometerUnit,
+                            test.odometerResultType,
+                            test.dataSource
+                      )
+          );
+          // Defects are keyed off the test's own row id, which ON CONFLICT
+          // above doesn't return — look it up by the natural key instead of
+          // assuming our freshly generated testId won against an existing row.
+          statements.push(
+                db
+                      .prepare(`DELETE FROM mot_defects WHERE mot_test_id = (SELECT id FROM mot_tests WHERE vehicle_id = ? AND mot_test_number = ?)`)
+                      .bind(vehicleId, test.motTestNumber)
+          );
+          for (const defect of test.defects) {
+                statements.push(
+                      db
+                            .prepare(
+                                  `INSERT INTO mot_defects (id, mot_test_id, text, type, dangerous)
+                                   VALUES (?, (SELECT id FROM mot_tests WHERE vehicle_id = ? AND mot_test_number = ?), ?, ?, ?)`
+                            )
+                            .bind(newId(), vehicleId, test.motTestNumber, defect.text, defect.type, defect.dangerous ? 1 : 0)
+                );
+          }
+    }
+
+    await db.batch(statements);
+}
+
+export async function getMotTestsForVehicle(db: D1Database, vehicleId: string): Promise<MotTestRow[]> {
+    const { results } = await db
+          .prepare(`SELECT * FROM mot_tests WHERE vehicle_id = ? ORDER BY completed_date DESC`)
+          .bind(vehicleId)
+          .all<MotTestRow>();
+    return results;
+}
+
+export async function getDefectsForTests(db: D1Database, testIds: string[]): Promise<Map<string, MotDefectRow[]>> {
+    const byTest = new Map<string, MotDefectRow[]>();
+    if (testIds.length === 0) return byTest;
+    const placeholders = testIds.map(() => "?").join(",");
+    const { results } = await db
+          .prepare(`SELECT * FROM mot_defects WHERE mot_test_id IN (${placeholders})`)
+          .bind(...testIds)
+          .all<MotDefectRow>();
+    for (const row of results) {
+          const list = byTest.get(row.mot_test_id) ?? [];
+          list.push(row);
+          byTest.set(row.mot_test_id, list);
+    }
+    return byTest;
 }
