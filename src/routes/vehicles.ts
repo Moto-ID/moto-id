@@ -122,7 +122,12 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
             // a recent respray) and this is only ever a convenience. Debounced
             // so it doesn't fire a lookup on every keystroke, and it never
             // blocks typing or submitting the form.
-            (function () {
+            // Wrapped in DOMContentLoaded because this script tag sits above
+            // the registration-number field in the markup — without this,
+            // document.getElementById('registrationNumber') runs before that
+            // element has been parsed yet, silently returns null, and the
+            // whole feature no-ops with no error anywhere to notice it by.
+            document.addEventListener('DOMContentLoaded', function () {
               var regInput = document.getElementById('registrationNumber');
               var statusEl = document.getElementById('dvsaLookupStatus');
               var makeInput = document.getElementById('vehicleMake');
@@ -149,7 +154,10 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                   .then(function (data) {
                     if (regInput.value.replace(/\\s+/g, '').toUpperCase() !== reg) return; // typed on since
                     if (!data.ok) {
-                      setStatus(data.reason === 'not_found' ? 'No DVSA record found \\u2014 enter the details manually.' : '', data.reason === 'not_found');
+                      // Not found is a normal outcome (a brand-new or non-GB
+                      // vehicle), not an error — shown in the same neutral
+                      // tone as everything else here, never red.
+                      setStatus(data.reason === 'not_found' ? 'No DVSA record found \\u2014 enter the details manually.' : '', false);
                       return;
                     }
                     var filled = [];
@@ -166,7 +174,7 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                 if (timer) clearTimeout(timer);
                 timer = setTimeout(runLookup, 700);
               });
-            })();
+            });
           </script>
 
           <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:34px">
