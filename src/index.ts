@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env } from "./types";
+import type { Env, Bindings } from "./types";
 import { attachUser } from "./lib/auth";
 import { marketing } from "./routes/marketing";
 import { auth } from "./routes/auth";
@@ -7,6 +7,7 @@ import { vehicles } from "./routes/vehicles";
 import { documents } from "./routes/documents";
 import { verify } from "./routes/verify";
 import { billing } from "./routes/billing";
+import { sendDueMotReminders } from "./lib/reminders";
 
 const app = new Hono<Env>();
 
@@ -228,4 +229,15 @@ app.post("/settings/password", async (c) => {
 
 app.notFound((c) => c.text("Not found", 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // Runs on the daily Cron Trigger declared in wrangler.toml's [triggers]
+  // block — entirely separate from any HTTP request, so there's no `c`
+  // (Hono context) here, just the raw env bindings. See
+  // src/lib/reminders.ts for what this actually does (the MOT-expiry
+  // reminder emails) and why it's safe to run unattended every day: it's
+  // fully idempotent per MOT cycle via mot_reminder_sent_for.
+  async scheduled(controller: any, env: Bindings, ctx: any): Promise<void> {
+    ctx.waitUntil(sendDueMotReminders(env));
+  },
+};
