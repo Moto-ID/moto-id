@@ -22,9 +22,38 @@ import {
     getOwnershipHistory,
     listAllDocumentsForVehicle,
     deleteVehicle,
+    syncMotHistoryForVehicle,
+    getMotTestsForVehicle,
+    getDefectsForTests,
     type Vehicle,
+    type MotTestRow,
+    type MotDefectRow,
 } from "../lib/db";
 import { sendOrderNotificationEmail, sendOwnershipTransferEmail } from "../lib/email";
+import { lookupVehicleByRegistration, DvsaNotConfiguredError, DvsaNotFoundError, type DvsaVehicle } from "../lib/dvsa";
+
+// Shared by both the registration form's live auto-fill and the
+// post-registration/manual-refresh sync below — one DVSA lookup, used two
+// ways. Kept here (rather than in dvsa.ts) since converting a DvsaVehicle
+// into the shape syncMotHistoryForVehicle wants is app-specific, not part
+// of the API client itself.
+async function syncVehicleFromDvsa(db: D1Database, vehicleId: string, dvsa: DvsaVehicle): Promise<void> {
+  await syncMotHistoryForVehicle(db, vehicleId, {
+    fuelType: dvsa.fuelType,
+    motDueDate: dvsa.motTests[0]?.expiryDate ?? null,
+    tests: dvsa.motTests.map((t) => ({
+      motTestNumber: t.motTestNumber,
+      completedDate: t.completedDate,
+      expiryDate: t.expiryDate,
+      testResult: t.testResult,
+      odometerValue: t.odometerValue,
+      odometerUnit: t.odometerUnit,
+      odometerResultType: t.odometerResultType,
+      dataSource: t.dataSource,
+      defects: t.defects,
+    })),
+  });
+}
 
 export const vehicles = new Hono<Env>();
 
@@ -85,15 +114,71 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
             })();
           </script>
 
+          <script>
+            // As soon as a plausible-looking UK registration number is typed,
+            // ask the server to look it up against the DVSA MOT History API
+            // and fill in make/model/colour/year automatically — still fully
+            // editable afterwards, since DVSA doesn't know everything (e.g.
+            // a recent respray) and this is only ever a convenience. Debounced
+            // so it doesn't fire a lookup on every keystroke, and it never
+            // blocks typing or submitting the form.
+            (function () {
+              var regInput = document.getElementById('registrationNumber');
+              var statusEl = document.getElementById('dvsaLookupStatus');
+              var makeInput = document.getElementById('vehicleMake');
+              var modelInput = document.getElementById('vehicleModel');
+              var colourInput = document.getElementById('vehicleColour');
+              var yearInput = document.getElementById('vehicleYear');
+              if (!regInput || !statusEl) return;
+
+              var timer = null;
+              var lastLookedUp = '';
+
+              function setStatus(text, isError) {
+                statusEl.textContent = text;
+                statusEl.style.color = isError ? 'oklch(45% 0.18 25)' : 'var(--ink-subtle)';
+              }
+
+              function runLookup() {
+                var reg = regInput.value.replace(/\\s+/g, '').toUpperCase();
+                if (reg.length < 3 || reg === lastLookedUp) return;
+                lastLookedUp = reg;
+                setStatus('Looking up ' + reg + ' with the DVSA\\u2026', false);
+                fetch('/register-vehicle/dvsa-lookup?registration=' + encodeURIComponent(reg))
+                  .then(function (res) { return res.json(); })
+                  .then(function (data) {
+                    if (regInput.value.replace(/\\s+/g, '').toUpperCase() !== reg) return; // typed on since
+                    if (!data.ok) {
+                      setStatus(data.reason === 'not_found' ? 'No DVSA record found \\u2014 enter the details manually.' : '', data.reason === 'not_found');
+                      return;
+                    }
+                    var filled = [];
+                    if (data.make && makeInput && !makeInput.value) { makeInput.value = data.make; filled.push('make'); }
+                    if (data.model && modelInput && !modelInput.value) { modelInput.value = data.model; filled.push('model'); }
+                    if (data.colour && colourInput && !colourInput.value) { colourInput.value = data.colour; filled.push('colour'); }
+                    if (data.year && yearInput && !yearInput.value) { yearInput.value = data.year; filled.push('year'); }
+                    setStatus(filled.length ? 'Filled in ' + filled.join(', ') + ' from the DVSA.' : 'Found on the DVSA \\u2014 nothing new to fill in.', false);
+                  })
+                  .catch(function () { setStatus('', false); });
+              }
+
+              regInput.addEventListener('input', function () {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(runLookup, 700);
+              });
+            })();
+          </script>
+
           <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:34px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
               <div class="field" style="margin-bottom:0">
                             <label>REGISTRATION NUMBER</label>
-                <input type="text" name="registrationNumber" class="mono" value="${esc(v.registrationNumber ?? "")}" required style="text-transform:uppercase">
+                <input type="text" name="registrationNumber" id="registrationNumber" class="mono" value="${esc(v.registrationNumber ?? "")}" required style="text-transform:uppercase" autocomplete="off">
+                <div id="dvsaLookupStatus" style="font-size:11px;color:var(--ink-subtle);margin-top:6px;min-height:14px"></div>
                             </div>
                             <div class="field" style="margin-bottom:0">
                                           <label>YEAR</label>
-                              <input type="number" name="year" class="mono" value="${esc(v.year ?? "")}" min="1900" max="2100">
+                              <input type="number" name="year" id="vehicleYear" class="mono" value="${esc(v.year ?? "")}" min="1900" max="2100">
                                           </div>
                                         </div>
                                         <div class="field" style="margin-bottom:0">
@@ -103,16 +188,16 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
                                                       <div class="field" style="margin-bottom:0">
                                                                     <label>MAKE</label>
-                                                        <input type="text" name="make" value="${esc(v.make ?? "")}" required>
+                                                        <input type="text" name="make" id="vehicleMake" value="${esc(v.make ?? "")}" required>
                                                                   </div>
                                                                   <div class="field" style="margin-bottom:0">
                                                                                 <label>MODEL</label>
-                                                                    <input type="text" name="model" value="${esc(v.model ?? "")}" required>
+                                                                    <input type="text" name="model" id="vehicleModel" value="${esc(v.model ?? "")}" required>
                                                                               </div>
                                                                             </div>
                                                                             <div class="field" style="margin-bottom:0">
                                                                               <label>COLOUR (OPTIONAL)</label>
-                                                                              <input type="text" name="colour" value="${esc(v.colour ?? "")}">
+                                                                              <input type="text" name="colour" id="vehicleColour" value="${esc(v.colour ?? "")}">
                                                                                       </div>
                                                                                     </div>
 
@@ -152,6 +237,34 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                         <a href="/dashboard" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">&larr; Back to my collection</a>
                                                                                           </div>`;
                                                                                         }
+
+// Live auto-fill helper for the registration form (see the inline script in
+// registerVehicleForm above). Deliberately returns 200 with {ok:false} for
+// every "nothing to fill in" case — not found, not configured, API error —
+// rather than an HTTP error status, since none of those should ever be
+// treated as a bug by the page: they just mean the form stays manual for
+// this vehicle. Requires auth only (not a vehicle credit) since looking
+// something up isn't the gated action — registering it still is.
+vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
+  const registration = c.req.query("registration") ?? "";
+  if (!registration.trim()) return c.json({ ok: false, reason: "empty" });
+  try {
+    const dvsa = await lookupVehicleByRegistration(c.env, registration);
+    const year = dvsa.registrationDate ? new Date(dvsa.registrationDate).getFullYear() : null;
+    return c.json({
+      ok: true,
+      make: dvsa.make,
+      model: dvsa.model,
+      colour: dvsa.colour,
+      year: Number.isFinite(year) ? year : null,
+    });
+  } catch (err) {
+    if (err instanceof DvsaNotFoundError) return c.json({ ok: false, reason: "not_found" });
+    if (err instanceof DvsaNotConfiguredError) return c.json({ ok: false, reason: "not_configured" });
+    console.error("DVSA lookup failed:", err instanceof Error ? err.message : String(err));
+    return c.json({ ok: false, reason: "error" });
+  }
+});
 
                                                                                         vehicles.get("/register-vehicle", requireAuth, (c) => {
                                                                                           const user = c.get("user")!;
@@ -247,6 +360,21 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                                   shipPostalCode,
                                                                                                   shipCountry,
                                                                                             });
+
+                                                                                            // Pull in this vehicle's MOT history from the DVSA right away, so the
+                                                                                            // MOT History folder and mileage graph are already populated the
+                                                                                            // first time the owner opens the vehicle page — not just after they
+                                                                                            // notice it's empty and click "Refresh". Best-effort: DVSA secrets
+                                                                                            // not being configured yet, or DVSA simply having no record for this
+                                                                                            // registration, must never block registration itself.
+                                                                                            try {
+                                                                                              const dvsa = await lookupVehicleByRegistration(c.env, vehicle.registration_number);
+                                                                                              await syncVehicleFromDvsa(c.env.DB, vehicle.id, dvsa);
+                                                                                            } catch (err) {
+                                                                                              if (!(err instanceof DvsaNotFoundError) && !(err instanceof DvsaNotConfiguredError)) {
+                                                                                                console.error("DVSA sync at registration failed:", err instanceof Error ? err.message : String(err));
+                                                                                              }
+                                                                                            }
 
                                                                                             // Automated order notification — every registration is a physical plate
                                                                                             // order, so Adam needs the customer's shipping address, the vehicle
@@ -419,6 +547,7 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
                                                                                             const activity = await recentActivity(c.env.DB, vehicle.id, 6);
                                                                                             const pendingTransfer = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
                                                                                             const ownershipHistory = await getOwnershipHistory(c.env.DB, vehicle.id);
+                                                                                            const mot = await getMotTestsForVehicle(c.env.DB, vehicle.id);
                                                                                             const ownerCount = 1 + ownershipHistory.length;
                                                                                             const ownedSince = ownershipHistory.length > 0
                                                                                               ? ownershipHistory[ownershipHistory.length - 1].transferred_at
@@ -465,6 +594,14 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                               <div style="font-size:10px;color:var(--ink-subtle);letter-spacing:0.08em">VIN</div>
                                                                                               <div style="font-family:var(--font-mono);font-size:12px">${esc(vehicle.vin)}</div>
                                                                                                         </div>
+                                                                                                        ${vehicle.fuel_type ? `<div style="display:flex;justify-content:space-between;margin-top:10px">
+                                                                                              <div style="font-size:10px;color:var(--ink-subtle);letter-spacing:0.08em">FUEL TYPE</div>
+                                                                                              <div style="font-size:12px">${esc(vehicle.fuel_type)}</div>
+                                                                                                        </div>` : ""}
+                                                                                                        ${vehicle.mot_due_date ? `<div style="display:flex;justify-content:space-between;margin-top:10px">
+                                                                                              <div style="font-size:10px;color:var(--ink-subtle);letter-spacing:0.08em">MOT DUE</div>
+                                                                                              <div style="font-size:12px">${formatMotDate(vehicle.mot_due_date)}</div>
+                                                                                                        </div>` : ""}
                                                                                                       </div>
 
                                                                                               <div style="border-top:1px solid var(--hairline);padding-top:16px">
@@ -505,6 +642,7 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                                           <div style="font-weight:600;font-size:13.5px;margin-top:16px;margin-bottom:4px">Ownership History</div>
                                                                                                                                 <div style="font-size:11.5px;color:var(--ink-subtle)">${ownerCount} owner${ownerCount === 1 ? "" : "s"} &middot; since ${new Date(ownedSince).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</div>
                                                                                                                                         </a>
+                                                                                                                                      ${folderCard(`/vehicles/${vehicle.id}/mot-history`, `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z"/><path d="M8.5 12.5 11 15l5-6"/></svg>`, "MOT History", mot.length, mot.length ? `last checked ${vehicle.mot_last_synced_at ? new Date(vehicle.mot_last_synced_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : ""}` : "")}
                                                                                                                                       </div>
                                                                                                                                 
                                                                                                                                 <div style="border:1px solid var(--hairline)">
@@ -732,6 +870,240 @@ vehicles.get("/vehicles/:id/history", requireAuth, async (c) => {
             user
         )
     );
+});
+
+// --- DVSA MOT history ---------------------------------------------------
+//
+// See migrations/0010_dvsa_mot_history.sql, src/lib/dvsa.ts and
+// syncVehicleFromDvsa above. Each MOT test is rendered as a certificate-
+// style record card (DVSA's API returns structured data only — there's no
+// actual scan/PDF behind any of these, so this is built from that data
+// rather than a literal document), plus a mileage-over-time chart.
+
+function formatMotDate(value: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return esc(value);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatOdometer(value: number | null, unit: string | null): string {
+  if (value === null) return "Not recorded";
+  return `${value.toLocaleString("en-GB")} ${unit === "km" ? "km" : "mi"}`;
+}
+
+function motTestCard(test: MotTestRow, defects: MotDefectRow[]): string {
+  const passed = (test.test_result ?? "").toUpperCase() === "PASSED";
+  const resultColor = passed ? "oklch(50% 0.14 142)" : "oklch(45% 0.18 25)";
+  const defectRows = defects
+    .map((d) => {
+      const severe = d.dangerous || d.type === "DANGEROUS" || d.type === "MAJOR" || d.type === "FAIL";
+      return `<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--hairline);font-size:12px;line-height:1.5">
+        <div style="flex:none;font-size:9.5px;letter-spacing:0.06em;color:${severe ? resultColor : "var(--ink-subtle)"};padding-top:2px;white-space:nowrap">${esc(d.type ?? "NOTE")}</div>
+        <div style="color:var(--ink-muted)">${esc(d.text)}</div>
+      </div>`;
+    })
+    .join("");
+
+  return `
+  <div style="border:1px solid var(--hairline);background:var(--bg);padding:20px 22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-weight:600;font-size:14.5px;margin-bottom:2px">${formatMotDate(test.completed_date)}</div>
+        <div style="font-size:11px;color:var(--ink-subtle)">MOT test no. <span class="mono">${esc(test.mot_test_number)}</span></div>
+      </div>
+      <div class="badge" style="border-color:${resultColor};color:${resultColor}">
+        <div class="dot" style="background:${resultColor}"></div>${passed ? "PASS" : "FAIL"}
+      </div>
+    </div>
+    <div style="display:flex;gap:28px;font-size:12.5px;margin-bottom:${defectRows ? "4px" : "0"}">
+      <div><div style="font-size:10px;color:var(--ink-subtle);letter-spacing:0.06em;margin-bottom:3px">MILEAGE</div>${formatOdometer(test.odometer_value, test.odometer_unit)}</div>
+      <div><div style="font-size:10px;color:var(--ink-subtle);letter-spacing:0.06em;margin-bottom:3px">EXPIRY</div>${formatMotDate(test.expiry_date)}</div>
+    </div>
+    ${defectRows}
+  </div>`;
+}
+
+// A simple time-scaled SVG line chart of odometer readings across every
+// test that has one — no charting library needed for a handful of points
+// rendered server-side. Returns a placeholder message instead of a chart
+// when there are fewer than two usable readings (a single point can't show
+// a trend).
+function mileageChart(tests: MotTestRow[]): string {
+  const points = tests
+    .filter((t) => t.odometer_value !== null && t.completed_date)
+    .map((t) => ({ date: new Date(t.completed_date as string), value: t.odometer_value as number, unit: t.odometer_unit }))
+    .filter((p) => !Number.isNaN(p.date.getTime()))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  if (points.length < 2) {
+    return `<div style="padding:28px 22px;font-size:12.5px;color:var(--ink-subtle);border:1px solid var(--hairline)">Not enough mileage readings yet to chart a history — this fills in as more MOT tests are recorded.</div>`;
+  }
+
+  const width = 640;
+  const height = 240;
+  const padLeft = 58;
+  const padRight = 20;
+  const padTop = 20;
+  const padBottom = 38;
+  const plotW = width - padLeft - padRight;
+  const plotH = height - padTop - padBottom;
+
+  const minT = points[0].date.getTime();
+  const maxT = points[points.length - 1].date.getTime();
+  const spanT = Math.max(maxT - minT, 1);
+  // Padded around the actual readings (not forced to a zero baseline) —
+  // mileage across a vehicle's MOT history is usually a tight, high range
+  // (e.g. 80,000-85,000), and zero-anchoring a line chart like this would
+  // flatten the very trend/inconsistency the chart exists to show.
+  const values = points.map((p) => p.value);
+  const rawMinV = Math.min(...values);
+  const rawMaxV = Math.max(...values);
+  const padV = Math.max((rawMaxV - rawMinV) * 0.12, 50);
+  const minV = Math.max(rawMinV - padV, 0);
+  const maxV = rawMaxV + padV;
+  const spanV = Math.max(maxV - minV, 1);
+
+  const x = (t: number) => padLeft + ((t - minT) / spanT) * plotW;
+  const y = (v: number) => padTop + plotH - ((v - minV) / spanV) * plotH;
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.date.getTime()).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+  const unit = points[points.length - 1].unit === "km" ? "km" : "mi";
+
+  const yTicks = [minV, (minV + maxV) / 2, maxV];
+  const gridlines = yTicks
+    .map(
+      (v) => `
+    <line x1="${padLeft}" y1="${y(v).toFixed(1)}" x2="${width - padRight}" y2="${y(v).toFixed(1)}" stroke="var(--hairline)" stroke-width="1"/>
+    <text x="${padLeft - 10}" y="${y(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--ink-subtle)">${Math.round(v).toLocaleString("en-GB")}</text>`
+    )
+    .join("");
+
+  // Date labels: every point if there are few enough, otherwise just the
+  // first and last, so labels never overlap.
+  const labelPoints = points.length <= 6 ? points : [points[0], points[points.length - 1]];
+  const dateLabels = labelPoints
+    .map(
+      (p) => `
+    <text x="${x(p.date.getTime()).toFixed(1)}" y="${height - padBottom + 20}" text-anchor="middle" font-size="10" fill="var(--ink-subtle)">${esc(
+        p.date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" })
+      )}</text>`
+    )
+    .join("");
+
+  // A visible 4px marker plus an invisible wider hit target (8px radius) for
+  // each reading, with the real date/mileage carried as data attributes for
+  // the hover tooltip below rather than relied on as the only access to that
+  // value — every mark a label could reach is already on the axis, this is
+  // just a precise read-out on demand.
+  const dots = points
+    .map((p) => {
+      const cx = x(p.date.getTime()).toFixed(1);
+      const cy = y(p.value).toFixed(1);
+      const label = `${esc(p.date.toLocaleDateString("en-GB"))}: ${p.value.toLocaleString("en-GB")} ${unit}`;
+      return `<g class="mot-point" data-label="${label}">
+        <circle cx="${cx}" cy="${cy}" r="10" fill="transparent"/>
+        <circle cx="${cx}" cy="${cy}" r="4" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
+      </g>`;
+    })
+    .join("");
+
+  return `
+  <div style="border:1px solid var(--hairline);padding:18px 10px 6px;background:var(--bg);position:relative" id="mileageChartWrap">
+    <div id="mileageTooltip" style="position:absolute;display:none;pointer-events:none;background:var(--ink);color:var(--bg);font-size:11px;padding:5px 9px;border-radius:4px;white-space:nowrap;transform:translate(-50%,-100%);z-index:10"></div>
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;display:block" role="img" aria-label="Mileage history, in ${unit}">
+      ${gridlines}
+      <path d="${linePath}" fill="none" stroke="var(--ink)" stroke-width="2"/>
+      ${dots}
+      ${dateLabels}
+    </svg>
+  </div>
+  <script>
+    (function () {
+      var wrap = document.getElementById('mileageChartWrap');
+      var tooltip = document.getElementById('mileageTooltip');
+      if (!wrap || !tooltip) return;
+      var svg = wrap.querySelector('svg');
+      Array.prototype.slice.call(wrap.querySelectorAll('.mot-point')).forEach(function (point) {
+        point.addEventListener('mouseenter', function () {
+          var circle = point.querySelector('circle:last-child');
+          var ptRect = circle.getBoundingClientRect();
+          var wrapRect = wrap.getBoundingClientRect();
+          tooltip.textContent = point.getAttribute('data-label');
+          tooltip.style.left = (ptRect.left + ptRect.width / 2 - wrapRect.left) + 'px';
+          tooltip.style.top = (ptRect.top - wrapRect.top - 8) + 'px';
+          tooltip.style.display = 'block';
+        });
+        point.addEventListener('mouseleave', function () {
+          tooltip.style.display = 'none';
+        });
+      });
+    })();
+  </script>`;
+}
+
+function motHistoryPage(vehicle: Vehicle, tests: MotTestRow[], defectsByTest: Map<string, MotDefectRow[]>): string {
+  const cards = tests.length
+    ? tests.map((t) => motTestCard(t, defectsByTest.get(t.id) ?? [])).join("")
+    : `<div style="padding:28px 22px;font-size:12.5px;color:var(--ink-subtle);border:1px solid var(--hairline)">No MOT history on file yet. If this vehicle is over three years old, try refreshing — otherwise it simply hasn't had its first MOT yet.</div>`;
+
+  const synced = vehicle.mot_last_synced_at
+    ? `Last checked with the DVSA ${formatMotDate(vehicle.mot_last_synced_at)}`
+    : "Not yet checked with the DVSA";
+
+  return `
+    <div style="max-width:720px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:6px">
+        <div>
+          <div style="font-family:var(--font-display);font-size:24px;margin-bottom:6px">MOT history</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
+        </div>
+        <form method="post" action="/vehicles/${vehicle.id}/mot-history/refresh">
+          <button type="submit" class="btn btn-outline" style="white-space:nowrap">Refresh MOT history</button>
+        </form>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-subtle);margin-bottom:28px">${esc(synced)}${vehicle.fuel_type ? ` &middot; ${esc(vehicle.fuel_type)}` : ""}${vehicle.mot_due_date ? ` &middot; MOT due ${formatMotDate(vehicle.mot_due_date)}` : ""}</div>
+
+      <div style="font-size:10px;letter-spacing:0.14em;color:var(--ink-subtle);margin-bottom:12px">MILEAGE HISTORY</div>
+      ${mileageChart(tests)}
+
+      <div style="font-size:10px;letter-spacing:0.14em;color:var(--ink-subtle);margin:32px 0 12px">TEST RECORDS</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px">${cards}</div>
+
+      <a href="/vehicles/${vehicle.id}" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">&larr; Back to vehicle</a>
+    </div>`;
+}
+
+vehicles.get("/vehicles/:id/mot-history", requireAuth, async (c) => {
+  const user = c.get("user")!;
+  const vehicle = await requireOwnedVehicle(c);
+  if (!vehicle) return c.notFound();
+  const tests = await getMotTestsForVehicle(c.env.DB, vehicle.id);
+  const defectsByTest = await getDefectsForTests(c.env.DB, tests.map((t) => t.id));
+  return c.html(
+    appShell(
+      "MOT history — Moto ID",
+      `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / MOT history`,
+      motHistoryPage(vehicle, tests, defectsByTest),
+      user
+    )
+  );
+});
+
+vehicles.post("/vehicles/:id/mot-history/refresh", requireAuth, async (c) => {
+  const vehicle = await requireOwnedVehicle(c);
+  if (!vehicle) return c.notFound();
+  try {
+    const dvsa = await lookupVehicleByRegistration(c.env, vehicle.registration_number);
+    await syncVehicleFromDvsa(c.env.DB, vehicle.id, dvsa);
+  } catch (err) {
+    // Nothing sensible to show inline here without a flash-message system —
+    // a failed refresh just leaves the existing data in place (an
+    // unconfigured/not-found/erroring lookup is never worse than what was
+    // already on file), and gets logged so it's visible in `wrangler tail`.
+    console.error("DVSA manual refresh failed:", err instanceof Error ? err.message : String(err));
+  }
+  return c.redirect(`/vehicles/${vehicle.id}/mot-history`);
 });
 
 function transferInvalidPage(): string {
