@@ -12,6 +12,17 @@ database_id = "428f12a8-10a5-4bac-b0d9-04e3b8ae7fdb"
 binding = "DOCS"
 bucket_name = "moto-id-documents"
 
+# Daily check for the MOT-expiry reminder email (opt-in, per vehicle — see
+# the "Email me 14 days before this MOT is due to expire" checkbox on each
+# vehicle's MOT History page). Runs src/index.ts's scheduled() handler,
+# which calls sendDueMotReminders() in src/lib/reminders.ts. 0 7 * * * is
+# 7am UTC daily — deliberately not the top of the hour exactly at midnight,
+# just a fixed, predictable time once a day; the dedup logic in
+# getVehiclesDueMotReminder/markMotReminderSent (src/lib/db.ts) means a
+# missed or repeated run is harmless either way.
+[triggers]
+crons = ["0 7 * * *"]
+
 # Static marketing assets (photos, video) served directly by Cloudflare from
 # the public/ directory — e.g. public/media/plate-photo.jpg is served at
 # /media/plate-photo.jpg. Not used for user-uploaded documents (those stay in
