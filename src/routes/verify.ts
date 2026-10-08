@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { pageHead } from "../lib/styles";
 import { esc } from "../lib/html";
-import { getVehicleByMotoIdNumber, countDocumentsByFolder, recordScan, lastScan, listPublicDocuments, getPublicDocument } from "../lib/db";
+import { getVehicleByMotoIdNumber, countDocumentsByFolder, recordScan, lastScan, listPublicDocuments, getPublicDocument, getDefectsForTests, type MotDefectRow } from "../lib/db";
+import { getMotTestsSafely, formatMotDate, motTestCard, mileageChart } from "../lib/mot";
 
 export const verify = new Hono<Env>();
 
@@ -57,6 +58,47 @@ function notFoundPage(motoIdNumber: string): string {
     const publicDocs = await listPublicDocuments(c.env.DB, vehicle.id);
     const publicPhotos = publicDocs.filter((d) => d.folder === "photo" && d.content_type?.startsWith("image/"));
     const publicFiles = publicDocs.filter((d) => !(d.folder === "photo" && d.content_type?.startsWith("image/")));
+
+    // MOT history and mileage are both off (private) by default — an owner
+    // opts each in separately from that page's own "Make visible on the
+    // public verify page" checkbox (see migrations/0011_mot_visibility_and_reminders.sql
+    // and the matching toggles in src/routes/vehicles.ts). Only fetched when
+    // at least one is actually on, so a vehicle that's kept both private
+    // costs this page no extra MOT-table reads.
+    const motTests = vehicle.mot_history_public || vehicle.mileage_public ? await getMotTestsSafely(c.env.DB, vehicle.id) : [];
+    let motDefectsByTest = new Map<string, MotDefectRow[]>();
+    if (vehicle.mot_history_public && motTests.length) {
+      try {
+        motDefectsByTest = await getDefectsForTests(c.env.DB, motTests.map((t) => t.id));
+      } catch (err) {
+        console.error("getDefectsForTests failed on public verify page (has migration 0010 been run?):", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    const motHistorySection = vehicle.mot_history_public
+      ? `
+    <div style="border:1px solid var(--hairline);margin-bottom:18px">
+      <div style="padding:16px 22px;border-bottom:1px solid var(--hairline);font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span>MOT history</span>
+        ${vehicle.mot_due_date ? `<span style="font-size:11px;color:var(--ink-subtle);font-weight:400">MOT due ${formatMotDate(vehicle.mot_due_date)}</span>` : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:18px 22px">
+        ${
+          motTests.length
+            ? motTests.map((t) => motTestCard(t, motDefectsByTest.get(t.id) ?? [])).join("")
+            : `<div style="font-size:12.5px;color:var(--ink-subtle)">No MOT history on file yet.</div>`
+        }
+      </div>
+    </div>`
+      : "";
+
+    const mileageSection = vehicle.mileage_public
+      ? `
+    <div style="border:1px solid var(--hairline);margin-bottom:18px">
+      <div style="padding:16px 22px;border-bottom:1px solid var(--hairline);font-weight:600;font-size:12.5px">Mileage history</div>
+      <div style="padding:18px 22px">${mileageChart(motTests)}</div>
+    </div>`
+      : "";
 
     const photosSection =
           publicPhotos.length > 0
@@ -147,6 +189,8 @@ function notFoundPage(motoIdNumber: string): string {
         </div>
       </div>
 
+      ${motHistorySection}
+      ${mileageSection}
       ${photosSection}
       ${filesSection}
 
