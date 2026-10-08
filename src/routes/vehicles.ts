@@ -37,6 +37,22 @@ import { lookupVehicleByRegistration, DvsaNotConfiguredError, DvsaNotFoundError,
 // ways. Kept here (rather than in dvsa.ts) since converting a DvsaVehicle
 // into the shape syncMotHistoryForVehicle wants is app-specific, not part
 // of the API client itself.
+// Guards every read of the mot_tests/mot_defects tables against migration
+// 0010 not having been run yet on this database (D1 migrations are applied
+// manually — see the project's deployment notes). Without this, every
+// vehicle page would 500 for every user the moment this feature's code
+// deployed, ahead of the migration actually being run. Once the migration
+// is applied this is a no-op — it only ever catches the "no such table"
+// case.
+async function getMotTestsSafely(db: D1Database, vehicleId: string): Promise<MotTestRow[]> {
+  try {
+    return await getMotTestsForVehicle(db, vehicleId);
+  } catch (err) {
+    console.error("getMotTestsForVehicle failed (has migration 0010 been run?):", err instanceof Error ? err.message : String(err));
+    return [];
+  }
+}
+
 async function syncVehicleFromDvsa(db: D1Database, vehicleId: string, dvsa: DvsaVehicle): Promise<void> {
   await syncMotHistoryForVehicle(db, vehicleId, {
     fuelType: dvsa.fuelType,
@@ -555,7 +571,7 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
                                                                                             const activity = await recentActivity(c.env.DB, vehicle.id, 6);
                                                                                             const pendingTransfer = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
                                                                                             const ownershipHistory = await getOwnershipHistory(c.env.DB, vehicle.id);
-                                                                                            const mot = await getMotTestsForVehicle(c.env.DB, vehicle.id);
+                                                                                            const mot = await getMotTestsSafely(c.env.DB, vehicle.id);
                                                                                             const ownerCount = 1 + ownershipHistory.length;
                                                                                             const ownedSince = ownershipHistory.length > 0
                                                                                               ? ownershipHistory[ownershipHistory.length - 1].transferred_at
@@ -1086,8 +1102,13 @@ vehicles.get("/vehicles/:id/mot-history", requireAuth, async (c) => {
   const user = c.get("user")!;
   const vehicle = await requireOwnedVehicle(c);
   if (!vehicle) return c.notFound();
-  const tests = await getMotTestsForVehicle(c.env.DB, vehicle.id);
-  const defectsByTest = await getDefectsForTests(c.env.DB, tests.map((t) => t.id));
+  const tests = await getMotTestsSafely(c.env.DB, vehicle.id);
+  let defectsByTest = new Map<string, MotDefectRow[]>();
+  try {
+    defectsByTest = await getDefectsForTests(c.env.DB, tests.map((t) => t.id));
+  } catch (err) {
+    console.error("getDefectsForTests failed (has migration 0010 been run?):", err instanceof Error ? err.message : String(err));
+  }
   return c.html(
     appShell(
       "MOT history — Moto ID",
