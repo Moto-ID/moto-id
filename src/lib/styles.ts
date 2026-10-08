@@ -114,20 +114,22 @@ label{font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle);display:block
 .row-list > *{border-bottom:1px solid var(--hairline)}
 .row-list > *:last-child{border-bottom:none}
 
-/* Cards / grid — both .grid-4 and .grid-3 use flexbox with per-card borders
-   rather than CSS Grid's background-plus-gap hairline trick. That trick only
-   works when the item count is a fixed multiple of the column count; the
-   vehicle-overview folder tiles (.grid-4) looked fixed at exactly 4 until
-   the MOT History tile made it 5, and "My Collection" (.grid-3) never had a
-   fixed count at all (an arbitrary number of vehicles) — both leave unfilled
-   trailing grid cells showing the container's own background otherwise, a
-   large blank-looking grey rectangle. Flexbox avoids this entirely: there
-   are never more "cells" than there are actual cards/tiles, so an incomplete
+/* Cards / grid — both .tile-grid and .grid-3 use flexbox with per-card
+   borders rather than CSS Grid's background-plus-gap hairline trick. That
+   trick only works when the item count is a fixed multiple of the column
+   count; the vehicle-overview folder/history tiles (.tile-grid, formerly
+   named .grid-4 back when it really was always exactly 4) have grown twice
+   now — first to 5 with the MOT History tile, then to 6 (3-over-3) with
+   Mileage History — and "My Collection" (.grid-3) never had a fixed count
+   at all (an arbitrary number of vehicles). Both leave unfilled trailing
+   grid cells showing the container's own background otherwise, a large
+   blank-looking grey rectangle. Flexbox avoids this entirely: there are
+   never more "cells" than there are actual cards/tiles, so an incomplete
    last row just leaves plain page background, not a stray colored box. */
-.grid-4{display:flex;flex-wrap:wrap;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline)}
-.grid-4 > *{flex:0 0 25%;min-width:0;box-sizing:border-box;border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
-@media (max-width:900px){.grid-4 > *{flex-basis:50%}}
-@media (max-width:560px){.grid-4 > *{flex-basis:100%}}
+.tile-grid{display:flex;flex-wrap:wrap;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline)}
+.tile-grid > *{flex:0 0 33.333%;min-width:0;box-sizing:border-box;border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+@media (max-width:900px){.tile-grid > *{flex-basis:50%}}
+@media (max-width:560px){.tile-grid > *{flex-basis:100%}}
 .grid-3{display:flex;flex-wrap:wrap;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline)}
 .grid-3 > *{flex:0 0 33.333%;min-width:0;box-sizing:border-box;background:var(--bg);border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
 @media (max-width:900px){.grid-3 > *{flex-basis:50%}}
