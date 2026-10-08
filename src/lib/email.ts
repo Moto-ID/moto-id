@@ -178,3 +178,49 @@ export async function sendOwnershipTransferEmail(
         html,
   });
 }
+
+/**
+ * Sent once per MOT cycle to an owner who's opted in (see the "Email me 14
+ * days before this MOT is due to expire" checkbox on the MOT History page,
+ * and migrations/0011_mot_visibility_and_reminders.sql). Fired from the
+ * Worker's scheduled() handler in src/index.ts, which runs a daily check via
+ * getVehiclesDueMotReminder/markMotReminderSent in src/lib/db.ts — those two
+ * functions are what guarantee this only ever sends once per due date, not
+ * once a day for two weeks straight.
+ */
+export async function sendMotExpiryReminderEmail(
+    env: Bindings,
+    opts: {
+          toEmail: string;
+          ownerName: string;
+          vehicle: { make: string; model: string; year: number | null; registrationNumber: string; motoIdNumber: string };
+          motDueDateFormatted: string;
+          manageUrl: string;
+    }
+): Promise<void> {
+    const { vehicle: v } = opts;
+    const vehicleSummary = [v.year, v.make, v.model].filter(Boolean).join(" ");
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6">Hi ${esc(opts.ownerName)}, your vehicle's MOT is due soon:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0 28px;background:#f7f7f7">
+        <tr><td style="padding:14px 16px">
+          <div style="font-weight:600;margin-bottom:4px">${esc(vehicleSummary)}</div>
+          <div style="color:#666;font-family:monospace;font-size:12.5px;margin-bottom:8px">${esc(v.registrationNumber)} &middot; No. ${esc(v.motoIdNumber)}</div>
+          <div style="color:#111;font-size:13.5px"><strong>MOT due ${esc(opts.motDueDateFormatted)}</strong></div>
+        </td></tr>
+      </table>
+      <p style="margin:28px 0">
+        <a href="${esc(opts.manageUrl)}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">View MOT history</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">This is a one-time reminder for this MOT cycle — booking and carrying out the test itself isn't something Moto ID does. You can turn this reminder off any time from the vehicle's MOT History page.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: opts.toEmail,
+        subject: `MOT reminder — ${vehicleSummary} due ${opts.motDueDateFormatted}`,
+        html,
+  });
+}

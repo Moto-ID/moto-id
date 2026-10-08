@@ -41,6 +41,17 @@ export interface Vehicle {
     fuel_type: string | null;
     mot_due_date: string | null;
     mot_last_synced_at: string | null;
+    // Owner-controlled visibility for the public /verify page — both off
+    // (private) by default, same as a freshly uploaded document/photo. See
+    // migrations/0011_mot_visibility_and_reminders.sql.
+    mot_history_public: number;
+    mileage_public: number;
+    // Opt-in only, off by default. mot_reminder_sent_for records the exact
+    // mot_due_date a reminder email was already sent for, so the scheduled
+    // check (see getVehiclesDueMotReminder below) never double-sends for the
+    // same MOT cycle.
+    mot_reminder_opt_in: number;
+    mot_reminder_sent_for: string | null;
     photo_r2_key: string | null;
     // Shipping address for the physical plate, captured as part of the
     // register-vehicle form itself (see migrations/0007_vehicle_shipping.sql).
@@ -276,6 +287,10 @@ export async function createVehicle(
         fuel_type: null,
         mot_due_date: null,
         mot_last_synced_at: null,
+        mot_history_public: 0,
+        mileage_public: 0,
+        mot_reminder_opt_in: 0,
+        mot_reminder_sent_for: null,
         photo_r2_key: null,
         ship_name: shipName,
         ship_address_line1: shipAddressLine1,
@@ -760,4 +775,51 @@ export async function getDefectsForTests(db: D1Database, testIds: string[]): Pro
           byTest.set(row.mot_test_id, list);
     }
     return byTest;
+}
+
+export async function setMotHistoryVisibility(db: D1Database, vehicleId: string, isPublic: boolean): Promise<void> {
+    await db.prepare("UPDATE vehicles SET mot_history_public = ? WHERE id = ?").bind(isPublic ? 1 : 0, vehicleId).run();
+}
+
+export async function setMileageVisibility(db: D1Database, vehicleId: string, isPublic: boolean): Promise<void> {
+    await db.prepare("UPDATE vehicles SET mileage_public = ? WHERE id = ?").bind(isPublic ? 1 : 0, vehicleId).run();
+}
+
+export async function setMotReminderOptIn(db: D1Database, vehicleId: string, optIn: boolean): Promise<void> {
+    await db.prepare("UPDATE vehicles SET mot_reminder_opt_in = ? WHERE id = ?").bind(optIn ? 1 : 0, vehicleId).run();
+}
+
+export interface MotReminderRow extends Vehicle {
+    owner_email: string;
+    owner_name: string;
+}
+
+/**
+ * Finds every vehicle whose owner has opted in to the MOT-expiry reminder,
+ * whose mot_due_date falls within the next 14 days (inclusive of today),
+ * and that hasn't already had a reminder sent for this exact due date —
+ * see markMotReminderSent below, called right after a reminder actually
+ * sends. Wrapped in date(...) on both sides of the comparison so an
+ * unexpected or malformed mot_due_date string fails the match (excluded)
+ * rather than throwing. Called from the Worker's scheduled() handler in
+ * src/index.ts — see migrations/0011_mot_visibility_and_reminders.sql.
+ */
+export async function getVehiclesDueMotReminder(db: D1Database): Promise<MotReminderRow[]> {
+    const { results } = await db
+          .prepare(
+                `SELECT v.*, u.email AS owner_email, u.name AS owner_name
+                 FROM vehicles v
+                 JOIN users u ON u.id = v.user_id
+                 WHERE v.mot_reminder_opt_in = 1
+                   AND v.mot_due_date IS NOT NULL
+                   AND date(v.mot_due_date) IS NOT NULL
+                   AND date(v.mot_due_date) BETWEEN date('now') AND date('now', '+14 days')
+                   AND (v.mot_reminder_sent_for IS NULL OR v.mot_reminder_sent_for <> v.mot_due_date)`
+          )
+          .all<MotReminderRow>();
+    return results;
+}
+
+export async function markMotReminderSent(db: D1Database, vehicleId: string, motDueDate: string): Promise<void> {
+    await db.prepare("UPDATE vehicles SET mot_reminder_sent_for = ? WHERE id = ?").bind(motDueDate, vehicleId).run();
 }
