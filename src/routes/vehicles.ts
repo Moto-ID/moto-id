@@ -920,15 +920,15 @@ function motHistoryPage(vehicle: Vehicle, tests: MotTestRow[], defectsByTest: Ma
 
       <div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px;border:1px solid var(--hairline);margin-bottom:28px">
         <form method="post" action="/vehicles/${vehicle.id}/mot-history/visibility" style="margin:0">
-          <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-muted);cursor:pointer">
-            <input type="checkbox" name="isPublic" onchange="this.form.requestSubmit()" ${vehicle.mot_history_public ? "checked" : ""}>
-            Make this vehicle's MOT history visible on the public verify page
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-muted);cursor:pointer;text-align:left">
+            <input type="checkbox" name="isPublic" onchange="this.form.requestSubmit()" ${vehicle.mot_history_public ? "checked" : ""} style="width:15px;height:15px;flex:0 0 15px;margin:1px 0 0">
+            <span>Make this vehicle's MOT history visible on the public verify page</span>
           </label>
         </form>
         <form method="post" action="/vehicles/${vehicle.id}/mot-history/reminder" style="margin:0">
-          <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-muted);cursor:pointer">
-            <input type="checkbox" name="optIn" onchange="this.form.requestSubmit()" ${vehicle.mot_reminder_opt_in ? "checked" : ""}>
-            Email me 14 days before this MOT is due to expire
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-muted);cursor:pointer;text-align:left">
+            <input type="checkbox" name="optIn" onchange="this.form.requestSubmit()" ${vehicle.mot_reminder_opt_in ? "checked" : ""} style="width:15px;height:15px;flex:0 0 15px;margin:1px 0 0">
+            <span>Email me 14 days before this MOT is due to expire</span>
           </label>
         </form>
       </div>
@@ -966,9 +966,9 @@ function mileageHistoryPage(vehicle: Vehicle, tests: MotTestRow[]): string {
       <div style="font-size:11.5px;color:var(--ink-subtle);margin-bottom:20px">${esc(synced)}</div>
 
       <form method="post" action="/vehicles/${vehicle.id}/mileage-history/visibility" style="margin-bottom:28px;padding:16px 18px;border:1px solid var(--hairline)">
-        <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-muted);cursor:pointer">
-          <input type="checkbox" name="isPublic" onchange="this.form.requestSubmit()" ${vehicle.mileage_public ? "checked" : ""}>
-          Make this vehicle's mileage history visible on the public verify page
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-muted);cursor:pointer;text-align:left">
+          <input type="checkbox" name="isPublic" onchange="this.form.requestSubmit()" ${vehicle.mileage_public ? "checked" : ""} style="width:15px;height:15px;flex:0 0 15px;margin:1px 0 0">
+          <span>Make this vehicle's mileage history visible on the public verify page</span>
         </label>
       </form>
 
