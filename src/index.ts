@@ -7,7 +7,7 @@ import { vehicles } from "./routes/vehicles";
 import { documents } from "./routes/documents";
 import { verify } from "./routes/verify";
 import { billing } from "./routes/billing";
-import { sendDueMotReminders } from "./lib/reminders";
+import { sendDueMotReminders, purgeExpiredDeletedDocuments, sendZeroDocsReminders, runCronJob } from "./lib/reminders";
 
 const app = new Hono<Env>();
 
@@ -238,6 +238,15 @@ export default {
   // reminder emails) and why it's safe to run unattended every day: it's
   // fully idempotent per MOT cycle via mot_reminder_sent_for.
   async scheduled(controller: any, env: Bindings, ctx: any): Promise<void> {
-    ctx.waitUntil(sendDueMotReminders(env));
+    // Each job is wrapped in runCronJob so an unexpected error in one gets
+    // emailed to Adam (see sendCronFailureAlertEmail in lib/email.ts)
+    // without affecting the others — each still gets its own waitUntil.
+    ctx.waitUntil(runCronJob(env, "sendDueMotReminders", () => sendDueMotReminders(env)));
+    // Purges documents/photos whose soft-delete undo window has expired —
+    // see softDeleteDocument in src/lib/db.ts.
+    ctx.waitUntil(runCronJob(env, "purgeExpiredDeletedDocuments", () => purgeExpiredDeletedDocuments(env)));
+    // One-time "your record is still empty" nudge — see business-plan.md
+    // Section 11.
+    ctx.waitUntil(runCronJob(env, "sendZeroDocsReminders", () => sendZeroDocsReminders(env)));
   },
 };
