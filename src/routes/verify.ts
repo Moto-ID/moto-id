@@ -3,6 +3,7 @@ import type { Env } from "../types";
 import { pageHead } from "../lib/styles";
 import { esc } from "../lib/html";
 import { getVehicleByMotoIdNumber, countDocumentsByFolder, recordScan, lastScan, listPublicDocuments, getPublicDocument, getDefectsForTests, type MotDefectRow } from "../lib/db";
+import { serveHeaders } from "../lib/files";
 import { getMotTestsSafely, formatMotDate, motTestCard, mileageChart } from "../lib/mot";
 
 export const verify = new Hono<Env>();
@@ -222,8 +223,14 @@ function notFoundPage(motoIdNumber: string): string {
     const object = await c.env.DOCS.get(doc.r2_key);
     if (!object) return c.notFound();
 
-    c.header("Content-Type", doc.content_type ?? "application/octet-stream");
-    c.header("Content-Disposition", `inline; filename="${doc.filename.replace(/"/g, "")}"`);
+    // This route has no auth at all — anyone with the link can hit it — so
+    // the inline-vs-download decision below (see serveHeaders in
+    // lib/files.ts) matters even more here than on the authenticated
+    // documents.ts equivalent: it's what stops a mislabeled upload from
+    // ever executing as a page on this origin for an anonymous visitor.
+    const headers = serveHeaders(doc.content_type);
+    c.header("Content-Type", headers.contentType);
+    c.header("Content-Disposition", `${headers.disposition}; filename="${doc.filename.replace(/"/g, "")}"`);
     c.header("Cache-Control", "public, max-age=3600");
     return c.body(object.body as any);
   });

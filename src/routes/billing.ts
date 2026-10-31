@@ -3,8 +3,17 @@ import type { Env } from "../types";
 import { authShell } from "../lib/layout";
 import { esc } from "../lib/html";
 import { requireAuth } from "../lib/auth";
-import { getVehiclesByUser, getUserById, grantCreditForCheckoutSession } from "../lib/db";
+import {
+  getVehiclesByUser,
+  getUserById,
+  grantCreditForCheckoutSession,
+  getPurchaseByPaymentIntent,
+  markPurchaseRefunded,
+  markPurchaseDisputed,
+  revokeUnusedCreditIfAvailable,
+} from "../lib/db";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature } from "../lib/stripe";
+import { sendPaymentReviewAlertEmail } from "../lib/email";
 
 export const billing = new Hono<Env>();
 
@@ -99,7 +108,14 @@ billing.get("/buy/success", requireAuth, async (c) => {
   if (sessionId) {
     const session = await retrieveCheckoutSession(c.env, sessionId);
     if (session && session.payment_status === "paid" && session.metadata?.userId === user.id) {
-      await grantCreditForCheckoutSession(c.env.DB, session.id, user.id, session.amount_total ?? 0, session.currency ?? "gbp");
+      await grantCreditForCheckoutSession(
+        c.env.DB,
+        session.id,
+        user.id,
+        session.amount_total ?? 0,
+        session.currency ?? "gbp",
+        session.payment_intent ?? null
+      );
     }
   }
 
@@ -153,7 +169,82 @@ billing.post("/webhooks/stripe", async (c) => {
     const session = event.data?.object;
     const userId: string | undefined = session?.metadata?.userId || session?.client_reference_id;
     if (session?.id && userId && session.payment_status === "paid") {
-      await grantCreditForCheckoutSession(c.env.DB, session.id, userId, session.amount_total ?? 0, session.currency ?? "gbp");
+      await grantCreditForCheckoutSession(
+        c.env.DB,
+        session.id,
+        userId,
+        session.amount_total ?? 0,
+        session.currency ?? "gbp",
+        session.payment_intent ?? null
+      );
+    }
+  }
+
+  // charge.refunded and charge.dispute.created both carry a payment_intent
+  // we can match back to the purchases row grantCreditForCheckoutSession
+  // created above — see migrations/0014_stripe_refunds.sql. A credit is
+  // only ever revoked automatically when the customer still has an unused
+  // one sitting on their account; otherwise Adam gets emailed to decide
+  // manually, since the vehicle (and possibly a shipped plate) likely
+  // already exists. See revokeUnusedCreditIfAvailable in lib/db.ts.
+  if (event.type === "charge.refunded") {
+    const charge = event.data?.object;
+    const paymentIntentId: string | undefined = typeof charge?.payment_intent === "string" ? charge.payment_intent : undefined;
+    // charge.refunded is only true once the charge is refunded in full —
+    // a partial refund leaves it false, and we don't auto-revoke a whole
+    // credit for a partial refund (ambiguous whether that should cost the
+    // customer their registration), so this handler is a no-op for those;
+    // Adam still sees partial refunds in the Stripe dashboard directly.
+    if (paymentIntentId && charge?.refunded === true) {
+      const purchase = await getPurchaseByPaymentIntent(c.env.DB, paymentIntentId);
+      if (purchase) {
+        const notAlreadyProcessed = await markPurchaseRefunded(c.env.DB, purchase.id);
+        if (notAlreadyProcessed) {
+          const creditRevoked = await revokeUnusedCreditIfAvailable(c.env.DB, purchase.user_id);
+          try {
+            const buyer = await getUserById(c.env.DB, purchase.user_id);
+            await sendPaymentReviewAlertEmail(c.env, {
+              kind: "refund",
+              customerEmail: buyer?.email ?? purchase.user_id,
+              amountPence: purchase.amount_pence,
+              currency: purchase.currency,
+              creditRevoked,
+            });
+          } catch (err) {
+            console.error("Failed to send refund review alert email:", err);
+          }
+        }
+      }
+    }
+  }
+
+  if (event.type === "charge.dispute.created") {
+    const dispute = event.data?.object;
+    const paymentIntentId: string | undefined = typeof dispute?.payment_intent === "string" ? dispute.payment_intent : undefined;
+    if (paymentIntentId) {
+      const purchase = await getPurchaseByPaymentIntent(c.env.DB, paymentIntentId);
+      if (purchase) {
+        await markPurchaseDisputed(c.env.DB, purchase.id, dispute?.status ?? "created");
+        // Disputes aren't idempotency-guarded the way refunds are (Stripe
+        // sends further charge.dispute.updated events as a dispute
+        // progresses, which we don't otherwise handle) — only revoke a
+        // credit the first time we see a dispute on this purchase.
+        if (!purchase.dispute_status) {
+          const creditRevoked = await revokeUnusedCreditIfAvailable(c.env.DB, purchase.user_id);
+          try {
+            const buyer = await getUserById(c.env.DB, purchase.user_id);
+            await sendPaymentReviewAlertEmail(c.env, {
+              kind: "dispute",
+              customerEmail: buyer?.email ?? purchase.user_id,
+              amountPence: purchase.amount_pence,
+              currency: purchase.currency,
+              creditRevoked,
+            });
+          } catch (err) {
+            console.error("Failed to send dispute review alert email:", err);
+          }
+        }
+      }
     }
   }
 
