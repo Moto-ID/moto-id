@@ -371,6 +371,12 @@ export async function getDocumentById(db: D1Database, docId: string): Promise<Do
     return row ?? null;
 }
 
+// Deletes a single document's D1 row. Callers are responsible for deleting
+// the corresponding R2 object first (same convention as deleteVehicle above).
+export async function deleteDocument(db: D1Database, docId: string): Promise<void> {
+    await db.prepare("DELETE FROM documents WHERE id = ?").bind(docId).run();
+}
+
 export async function listPublicDocuments(db: D1Database, vehicleId: string): Promise<Document[]> {
     const { results } = await db
           .prepare("SELECT * FROM documents WHERE vehicle_id = ? AND is_public = 1 ORDER BY created_at DESC")
