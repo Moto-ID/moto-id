@@ -3,7 +3,20 @@ import type { Env } from "../types";
 import { appShell } from "../lib/layout";
 import { esc } from "../lib/html";
 import { requireAuth } from "../lib/auth";
-import { getVehicleById, listDocuments, addDocument, setDocumentVisibility, getDocumentById, deleteDocument, type Folder, type Document } from "../lib/db";
+import {
+  getVehicleById,
+  listDocuments,
+  addDocument,
+  setDocumentVisibility,
+  getDocumentById,
+  softDeleteDocument,
+  restoreDocument,
+  listDeletedDocuments,
+  DOCUMENT_UNDO_WINDOW_DAYS,
+  type Folder,
+  type Document,
+} from "../lib/db";
+import { sniffFileType, serveHeaders, MAX_UPLOAD_BYTES } from "../lib/files";
 
 export const documents = new Hono<Env>();
 
@@ -45,9 +58,39 @@ function visibilityToggle(vehicleId: string, folder: Folder, doc: Document): str
 
 function deleteButton(vehicleId: string, folder: Folder, doc: Document): string {
     return `
-    <form method="post" action="/vehicles/${vehicleId}/folder/${folder}/documents/${doc.id}/delete" style="margin:0" onsubmit="return confirm('Delete this file? This can&#39;t be undone.')">
+    <form method="post" action="/vehicles/${vehicleId}/folder/${folder}/documents/${doc.id}/delete" style="margin:0" onsubmit="return confirm('Delete this file? You can restore it from Recently Deleted for ${DOCUMENT_UNDO_WINDOW_DAYS} days.')">
       <button type="submit" title="Delete" aria-label="Delete file" style="background:none;border:none;padding:4px;margin:0;color:var(--ink-subtle);cursor:pointer;display:inline-flex;align-items:center;line-height:0">${TRASH_ICON}</button>
     </form>`;
+}
+
+function daysLeft(deletedAt: string): number {
+    const deletedMs = new Date(deletedAt + "Z").getTime(); // D1's datetime('now') is UTC, no offset in the string
+    const elapsedDays = (Date.now() - deletedMs) / (1000 * 60 * 60 * 24);
+    return Math.max(0, Math.ceil(DOCUMENT_UNDO_WINDOW_DAYS - elapsedDays));
+}
+
+function recentlyDeletedSection(vehicleId: string, folder: Folder, deleted: Document[]): string {
+    if (deleted.length === 0) return "";
+    return `
+    <details style="margin-top:28px">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--ink-subtle);letter-spacing:0.04em">RECENTLY DELETED (${deleted.length})</summary>
+      <div style="margin-top:14px;border:1px solid var(--hairline)">
+        ${deleted
+              .map(
+                    (d) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--hairline);font-size:12.5px;color:var(--ink-muted)">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.filename)}</div>
+          <div style="display:flex;align-items:center;gap:14px;white-space:nowrap">
+            <span style="color:var(--ink-subtle);font-size:11px">${daysLeft(d.deleted_at!)} day${daysLeft(d.deleted_at!) === 1 ? "" : "s"} left</span>
+            <form method="post" action="/vehicles/${vehicleId}/folder/${folder}/documents/${d.id}/restore" style="margin:0">
+              <button type="submit" class="text-link" style="background:none;border:none;padding:0;font-size:12.5px;cursor:pointer">Restore</button>
+            </form>
+          </div>
+        </div>`
+              )
+              .join("")}
+      </div>
+    </details>`;
 }
 
 function isImage(doc: Document): boolean {
@@ -62,6 +105,7 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
 
     const folder = folderParam;
     const docs = await listDocuments(c.env.DB, vehicle.id, folder);
+    const deletedDocs = (await listDeletedDocuments(c.env.DB, vehicle.id)).filter((d) => d.folder === folder);
     const r2Enabled = !!c.env.DOCS;
 
     const listing =
@@ -125,7 +169,7 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
             <label style="border:1px dashed var(--hairline-strong);padding:26px;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--ink-subtle);cursor:pointer">
               ${UPLOAD_ICON}
               <span style="font-size:13px">Click to choose files &mdash; PDF, JPG or PNG (you can select more than one)</span>
-              <input type="file" name="file" multiple required style="display:none" onchange="this.form.requestSubmit()">
+              <input type="file" name="file" accept="image/*,application/pdf" multiple required style="display:none" onchange="this.form.requestSubmit()">
             </label>
             <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-muted);cursor:pointer">
               <input type="checkbox" name="isPublic">
@@ -147,6 +191,8 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
       ${uploadBlock}
 
       ${listing}
+
+      ${recentlyDeletedSection(vehicle.id, folder, deletedDocs)}
     </div>`;
 
     return c.html(
@@ -177,16 +223,27 @@ documents.post("/vehicles/:id/folder/:folder/upload", requireAuth, async (c) => 
     const isPublic = body.isPublic === "on";
 
     for (const file of files) {
+          // Oversized files are silently skipped rather than erroring the whole
+          // batch — a multi-file drop with one huge photo should still save
+          // the rest. (25MB — see MAX_UPLOAD_BYTES in lib/files.ts for why.)
+          if (file.size > MAX_UPLOAD_BYTES) continue;
+
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          // Store what the bytes actually are, never what the browser claimed
+          // — see lib/files.ts for why (this is the content_type later used
+          // to decide inline-vs-download when serving the file back).
+          const sniffed = sniffFileType(bytes);
+
           const r2Key = `${vehicle.id}/${folder}/${crypto.randomUUID()}-${file.name}`;
-          await c.env.DOCS.put(r2Key, await file.arrayBuffer(), {
-                httpMetadata: { contentType: file.type || undefined },
+          await c.env.DOCS.put(r2Key, bytes, {
+                httpMetadata: { contentType: sniffed ?? "application/octet-stream" },
           });
 
           await addDocument(c.env.DB, vehicle.id, {
                 folder,
                 filename: file.name,
                 r2Key,
-                contentType: file.type || null,
+                contentType: sniffed,
                 sizeBytes: file.size || null,
                 addedBy: user.name,
                 isPublic,
@@ -203,7 +260,7 @@ documents.post("/vehicles/:id/folder/:folder/documents/:docId/visibility", requi
     if (!vehicle || vehicle.user_id !== user.id || !isFolder(folderParam)) return c.notFound();
 
     const doc = await getDocumentById(c.env.DB, c.req.param("docId"));
-    if (!doc || doc.vehicle_id !== vehicle.id) return c.notFound();
+    if (!doc || doc.vehicle_id !== vehicle.id || doc.deleted_at) return c.notFound();
 
     const body = await c.req.parseBody();
     const isPublic = body.isPublic === "on";
@@ -219,18 +276,27 @@ documents.post("/vehicles/:id/folder/:folder/documents/:docId/delete", requireAu
     if (!vehicle || vehicle.user_id !== user.id || !isFolder(folderParam)) return c.notFound();
 
     const doc = await getDocumentById(c.env.DB, c.req.param("docId"));
-    if (!doc || doc.vehicle_id !== vehicle.id) return c.notFound();
+    if (!doc || doc.vehicle_id !== vehicle.id || doc.deleted_at) return c.notFound();
 
-    if (c.env.DOCS) {
-          try {
-                await c.env.DOCS.delete(doc.r2_key);
-          } catch {
-                // best-effort — same convention as the vehicle-removal flow in
-                // vehicles.ts: a leftover R2 object is harmless once the D1 row is gone
-          }
-    }
+    // Soft-delete only: the R2 object stays put, and the D1 row just gets
+    // deleted_at set, so this is undoable from the "Recently deleted"
+    // section for DOCUMENT_UNDO_WINDOW_DAYS — see restoreDocument below and
+    // the purge sweep in src/index.ts's scheduled() handler.
+    await softDeleteDocument(c.env.DB, doc.id);
 
-    await deleteDocument(c.env.DB, doc.id);
+    return c.redirect(`/vehicles/${vehicle.id}/folder/${folderParam}`);
+});
+
+documents.post("/vehicles/:id/folder/:folder/documents/:docId/restore", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
+    const folderParam = c.req.param("folder");
+    if (!vehicle || vehicle.user_id !== user.id || !isFolder(folderParam)) return c.notFound();
+
+    const doc = await getDocumentById(c.env.DB, c.req.param("docId"));
+    if (!doc || doc.vehicle_id !== vehicle.id || !doc.deleted_at) return c.notFound();
+
+    await restoreDocument(c.env.DB, doc.id);
 
     return c.redirect(`/vehicles/${vehicle.id}/folder/${folderParam}`);
 });
@@ -249,7 +315,8 @@ documents.get("/vehicles/:id/folder/:folder/documents/:docId", requireAuth, asyn
     const object = await c.env.DOCS.get(doc.r2_key);
     if (!object) return c.notFound();
 
-    c.header("Content-Type", doc.content_type ?? "application/octet-stream");
-    c.header("Content-Disposition", `inline; filename="${doc.filename.replace(/"/g, "")}"`);
+    const headers = serveHeaders(doc.content_type);
+    c.header("Content-Type", headers.contentType);
+    c.header("Content-Disposition", `${headers.disposition}; filename="${doc.filename.replace(/"/g, "")}"`);
     return c.body(object.body as any);
 });

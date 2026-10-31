@@ -13,10 +13,45 @@ import {
   markPasswordResetUsed,
   updateUserPassword,
   getUserById,
+  createEmailVerificationToken,
+  getValidEmailVerificationToken,
+  markEmailVerificationUsed,
+  setEmailVerified,
+  checkRateLimit,
+  recordAuthAttempt,
 } from "../lib/db";
-import { setSessionCookie, clearSessionCookie } from "../lib/auth";
-import { sendPasswordResetEmail } from "../lib/email";
+import { setSessionCookie, clearSessionCookie, getClientIp } from "../lib/auth";
+import { sendPasswordResetEmail, sendVerificationEmail, sendAccountAlreadyExistsEmail } from "../lib/email";
 import { getCookie } from "hono/cookie";
+
+// Shared by every rate-limited route below — kept generous enough that a
+// real user mistyping a password or re-submitting a form never notices,
+// while still bounding the damage a script hammering the endpoint can do.
+const RATE_LIMITS = {
+  login_email: { max: 8, windowMinutes: 15 },
+  login_ip: { max: 20, windowMinutes: 15 },
+  signup_ip: { max: 8, windowMinutes: 60 },
+  forgot_password_email: { max: 5, windowMinutes: 60 },
+  forgot_password_ip: { max: 15, windowMinutes: 60 },
+  resend_verification: { max: 3, windowMinutes: 60 },
+};
+
+function tooManyAttemptsMessage() {
+  return "Too many attempts. Please wait a while and try again.";
+}
+
+function verificationNeededForm() {
+  return `
+    <div style="width:100%;max-width:380px">
+      <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">VERIFY YOUR EMAIL</div>
+      <div style="font-family:var(--font-display);font-size:30px;line-height:1.25;margin-bottom:30px">Check your<br>inbox.</div>
+      <div style="font-size:13.5px;line-height:1.7;color:var(--ink-muted);margin-bottom:24px">We've sent a verification link to your email. Click it, then come back to try again.</div>
+      <form method="post" action="/verify-email/resend">
+        <button type="submit" class="btn" style="width:100%;margin-bottom:12px">Resend verification email</button>
+      </form>
+      <div style="text-align:center;font-size:13px;color:var(--ink-muted)"><a href="/dashboard" class="text-link">Back to dashboard</a></div>
+    </div>`;
+}
 
 export const auth = new Hono<Env>();
 
@@ -74,22 +109,54 @@ auth.post("/signup", async (c) => {
                 );
         }
 
+    const ip = getClientIp(c);
+    const ipOk = await checkRateLimit(c.env.DB, "signup", ip, RATE_LIMITS.signup_ip.max, RATE_LIMITS.signup_ip.windowMinutes);
+    await recordAuthAttempt(c.env.DB, "signup", ip);
+    if (!ipOk) {
+          return c.html(
+                  authShell("Create your account — Moto ID", signupForm({ name, email, next, error: tooManyAttemptsMessage() })),
+                  429
+                );
+        }
+
+    // This whole branch exists to avoid leaking account existence: the
+    // caller sees the exact same "signed up" outcome whether the email was
+    // already registered or not. If it WAS already registered, the real
+    // account holder gets a courtesy email instead (with a password-reset
+    // link), and we stop there — the submitter's own attempt is silently a
+    // no-op, not a second account.
     const existing = await getUserByEmail(c.env.DB, email);
     if (existing) {
-          return c.html(
-                  authShell(
-                            "Create your account — Moto ID",
-                            signupForm({ name, email, next, error: "An account already exists for that email. Try signing in instead." })
-                          ),
-                  400
-                );
+          const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
+          const resetToken = newId();
+          try {
+                await createPasswordResetToken(c.env.DB, existing.id, resetToken);
+                await sendAccountAlreadyExistsEmail(c.env, existing.email, `${origin}/reset-password/${resetToken}`);
+          } catch (err) {
+                // Best-effort — never let an email-provider hiccup turn into an
+                // enumeration leak via a different error response.
+                console.error("Failed to send account-already-exists notice:", err);
+          }
+          return c.html(authShell("Check your email — Moto ID", signupForm({ name, email: "", next, notice: "Almost there — check your email to continue." })));
         }
 
     const passwordHash = await hashPassword(password);
     const user = await createUser(c.env.DB, name, email, passwordHash);
-    const token = newSessionToken();
-    await createSession(c.env.DB, user.id, token);
-    setSessionCookie(c, token);
+    const sessionToken = newSessionToken();
+    await createSession(c.env.DB, user.id, sessionToken);
+    setSessionCookie(c, sessionToken);
+
+    // Best-effort, non-blocking: the account is usable immediately either
+    // way (see email_verified comment on the User interface in lib/db.ts) —
+    // a failure here should never stop someone from completing signup.
+    try {
+          const verifyToken = newId();
+          await createEmailVerificationToken(c.env.DB, user.id, verifyToken);
+          const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
+          await sendVerificationEmail(c.env, user.email, `${origin}/verify-email/${verifyToken}`);
+    } catch (err) {
+          console.error("Failed to send verification email:", err);
+    }
 
     // Signing up is free — /dashboard shows "My Collection" and, since a new
     // account has no vehicle credits yet, prompts them to get a Moto ID
@@ -97,6 +164,73 @@ auth.post("/signup", async (c) => {
     // "next" is used by the ownership-transfer accept flow (routes/vehicles.ts)
     // to send a brand-new buyer straight back to the invitation they clicked.
     return c.redirect(next ?? "/dashboard");
+  });
+
+auth.get("/verify-email/:token", async (c) => {
+    const token = c.req.param("token");
+    const verification = await getValidEmailVerificationToken(c.env.DB, token);
+    if (!verification) {
+          return c.html(
+                  authShell(
+                            "Verify your email — Moto ID",
+                            `<div style="width:100%;max-width:380px">
+                               <div style="font-family:var(--font-display);font-size:30px;line-height:1.25;margin-bottom:20px">Link expired.</div>
+                               <div style="font-size:13.5px;line-height:1.7;color:var(--ink-muted);margin-bottom:24px">This verification link is invalid or has expired.</div>
+                               <form method="post" action="/verify-email/resend">
+                                 <button type="submit" class="btn btn-solid" style="width:100%;border:none">Send a new link</button>
+                               </form>
+                             </div>`
+                          ),
+                  400
+                );
+        }
+
+    await markEmailVerificationUsed(c.env.DB, token);
+    await setEmailVerified(c.env.DB, verification.user_id);
+
+    return c.html(
+          authShell(
+                  "Email verified — Moto ID",
+                  `<div style="width:100%;max-width:380px">
+                     <div style="font-family:var(--font-display);font-size:30px;line-height:1.25;margin-bottom:20px">Email verified.</div>
+                     <div style="font-size:13.5px;line-height:1.7;color:var(--ink-muted);margin-bottom:24px">Thanks — your email address is confirmed.</div>
+                     <a href="/dashboard" class="btn btn-solid" style="display:block;text-align:center;width:100%;border:none;text-decoration:none">Go to dashboard</a>
+                   </div>`
+                )
+        );
+  });
+
+auth.post("/verify-email/resend", async (c) => {
+    const user = c.get("user");
+    if (!user) return c.redirect("/login");
+
+    if (user.email_verified) {
+          return c.redirect("/dashboard");
+        }
+
+    const ok = await checkRateLimit(
+          c.env.DB,
+          "resend_verification",
+          user.id,
+          RATE_LIMITS.resend_verification.max,
+          RATE_LIMITS.resend_verification.windowMinutes
+        );
+    await recordAuthAttempt(c.env.DB, "resend_verification", user.id);
+
+    if (ok) {
+          try {
+                const verifyToken = newId();
+                await createEmailVerificationToken(c.env.DB, user.id, verifyToken);
+                const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
+                await sendVerificationEmail(c.env, user.email, `${origin}/verify-email/${verifyToken}`);
+          } catch (err) {
+                console.error("Failed to resend verification email:", err);
+          }
+        }
+
+    // Same response either way (rate-limited or not, send succeeded or not)
+    // — nothing here needs to, or should, tell the caller which happened.
+    return c.html(authShell("Verify your email — Moto ID", verificationNeededForm()));
   });
 
 function loginForm(opts: { email?: string; error?: string; next?: string; notice?: string }) {
@@ -147,8 +281,30 @@ auth.post("/login", async (c) => {
     const password = String(body.password ?? "");
     const next = typeof body.next === "string" && body.next.startsWith("/") ? body.next : "/dashboard";
 
+    const ip = getClientIp(c);
+    const emailKey = email.toLowerCase();
+    const [emailOk, ipOk] = await Promise.all([
+          checkRateLimit(c.env.DB, "login", emailKey, RATE_LIMITS.login_email.max, RATE_LIMITS.login_email.windowMinutes),
+          checkRateLimit(c.env.DB, "login", `ip:${ip}`, RATE_LIMITS.login_ip.max, RATE_LIMITS.login_ip.windowMinutes),
+        ]);
+
+    if (!emailOk || !ipOk) {
+          return c.html(
+                  authShell("Sign in — Moto ID", loginForm({ email, error: tooManyAttemptsMessage(), next })),
+                  429
+                );
+        }
+
     const user = await getUserByEmail(c.env.DB, email);
     const ok = user ? await verifyPassword(password, user.password_hash) : false;
+
+    // Record the outcome against both keys — checkRateLimit ignores
+    // "success" rows, so a correct login never counts toward the lockout.
+    const outcome = ok ? "success" : "failure";
+    await Promise.all([
+          recordAuthAttempt(c.env.DB, "login", emailKey, outcome),
+          recordAuthAttempt(c.env.DB, "login", `ip:${ip}`, outcome),
+        ]);
 
     if (!user || !ok) {
           return c.html(
@@ -209,6 +365,20 @@ auth.post("/forgot-password", async (c) => {
   const done = () => c.html(authShell("Reset your password — Moto ID", forgotPasswordForm({ sent: true })));
 
   if (!email) return done();
+
+  const ip = getClientIp(c);
+  const emailKey = email.toLowerCase();
+  const [emailOk, ipOk] = await Promise.all([
+        checkRateLimit(c.env.DB, "forgot_password", emailKey, RATE_LIMITS.forgot_password_email.max, RATE_LIMITS.forgot_password_email.windowMinutes),
+        checkRateLimit(c.env.DB, "forgot_password", `ip:${ip}`, RATE_LIMITS.forgot_password_ip.max, RATE_LIMITS.forgot_password_ip.windowMinutes),
+      ]);
+  await Promise.all([
+        recordAuthAttempt(c.env.DB, "forgot_password", emailKey),
+        recordAuthAttempt(c.env.DB, "forgot_password", `ip:${ip}`),
+      ]);
+  // Rate-limited requests get the exact same response as a genuine "sent"
+  // — showing a different message here would itself leak information.
+  if (!emailOk || !ipOk) return done();
 
   const user = await getUserByEmail(c.env.DB, email);
     if (!user) return done();
