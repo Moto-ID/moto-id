@@ -4,6 +4,7 @@ import { authShell, appShell } from "../lib/layout";
 import { esc } from "../lib/html";
 import { requireAuth } from "../lib/auth";
 import { newId } from "../lib/crypto";
+import { sniffFileType, serveHeaders, MAX_UPLOAD_BYTES } from "../lib/files";
 import {
     createVehicle,
     getVehiclesByUser,
@@ -155,19 +156,19 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
               }
 
               function runLookup() {
-                var reg = regInput.value.replace(/\\s+/g, '').toUpperCase();
+                var reg = regInput.value.replace(/\s+/g, '').toUpperCase();
                 if (reg.length < 3 || reg === lastLookedUp) return;
                 lastLookedUp = reg;
-                setStatus('Looking up ' + reg + ' with the DVSA\\u2026', false);
+                setStatus('Looking up ' + reg + ' with the DVSA\u2026', false);
                 fetch('/register-vehicle/dvsa-lookup?registration=' + encodeURIComponent(reg))
                   .then(function (res) { return res.json(); })
                   .then(function (data) {
-                    if (regInput.value.replace(/\\s+/g, '').toUpperCase() !== reg) return; // typed on since
+                    if (regInput.value.replace(/\s+/g, '').toUpperCase() !== reg) return; // typed on since
                     if (!data.ok) {
                       // Not found is a normal outcome (a brand-new or non-GB
                       // vehicle), not an error — shown in the same neutral
                       // tone as everything else here, never red.
-                      setStatus(data.reason === 'not_found' ? 'No DVSA record found \\u2014 enter the details manually.' : '', false);
+                      setStatus(data.reason === 'not_found' ? 'No DVSA record found \u2014 enter the details manually.' : '', false);
                       return;
                     }
                     var filled = [];
@@ -175,7 +176,7 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                     if (data.model && modelInput && !modelInput.value) { modelInput.value = data.model; filled.push('model'); }
                     if (data.colour && colourInput && !colourInput.value) { colourInput.value = data.colour; filled.push('colour'); }
                     if (data.year && yearInput && !yearInput.value) { yearInput.value = data.year; filled.push('year'); }
-                    setStatus(filled.length ? 'Filled in ' + filled.join(', ') + ' from the DVSA.' : 'Found on the DVSA \\u2014 nothing new to fill in.', false);
+                    setStatus(filled.length ? 'Filled in ' + filled.join(', ') + ' from the DVSA.' : 'Found on the DVSA \u2014 nothing new to fill in.', false);
                   })
                   .catch(function () { setStatus('', false); });
               }
@@ -503,7 +504,7 @@ function photoBox(vehicle: Vehicle, icon: string, uploadEnabled: boolean): strin
     <div class="photo-upload" style="height:114px;background:var(--bg-panel);border:1px solid var(--hairline);margin-bottom:20px">
     ${inner}
     <div class="photo-overlay">${vehicle.photo_r2_key ? "Change photo" : "Click to add a photo"}</div>
-    <input type="file" name="file" accept="image/png,image/jpeg,image/webp" onchange="this.form.requestSubmit()">
+    <input type="file" name="file" accept="image/*" capture="environment" onchange="this.form.requestSubmit()">
     </div>
     </form>`;
 }
@@ -522,13 +523,22 @@ vehicles.post("/vehicles/:id/photo", requireAuth, async (c) => {
 
     const body = await c.req.parseBody();
     const file = body.file;
-    if (!(file instanceof File) || file.size === 0 || !file.type.startsWith("image/")) {
+    if (!(file instanceof File) || file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
+        return c.redirect(`/vehicles/${vehicle.id}`);
+    }
+
+    // Sniff the real bytes rather than trusting file.type — same reasoning
+    // as the document-upload path, see lib/files.ts. A cover photo isn't
+    // image/* under the hood, reject it instead of storing/serving it.
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const sniffed = sniffFileType(bytes);
+    if (!sniffed || !sniffed.startsWith("image/")) {
         return c.redirect(`/vehicles/${vehicle.id}`);
     }
 
     const r2Key = `${vehicle.id}/cover/${crypto.randomUUID()}-${file.name}`;
-    await c.env.DOCS.put(r2Key, await file.arrayBuffer(), {
-        httpMetadata: { contentType: file.type || undefined },
+    await c.env.DOCS.put(r2Key, bytes, {
+        httpMetadata: { contentType: sniffed },
     });
 
     const previousKey = vehicle.photo_r2_key;
@@ -551,7 +561,9 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
     const object = await c.env.DOCS.get(vehicle.photo_r2_key);
     if (!object) return c.notFound();
 
-    c.header("Content-Type", object.httpMetadata?.contentType ?? "image/jpeg");
+    const headers = serveHeaders(object.httpMetadata?.contentType ?? null);
+    c.header("Content-Type", headers.contentType);
+    c.header("Content-Disposition", headers.disposition);
     c.header("Cache-Control", "private, max-age=3600");
     return c.body(object.body as any);
 });
@@ -695,7 +707,7 @@ function transferForm(vehicle: Vehicle, opts: { error?: string } = {}): string {
     <div style="width:100%;max-width:440px">
       <div style="font-family:var(--font-display);font-size:24px;margin-bottom:10px">Transfer ownership</div>
       <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${esc(vehicle.make)} ${esc(vehicle.model)} &middot; ${esc(vehicle.registration_number)}</div>
-      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">If you've sold this vehicle, transfer its Moto ID record &mdash; including its full service history, invoices and photos &mdash; to the new owner. Transfers are free. Enter the new owner's email and we'll send them a link to accept; nothing changes unless they do, and you can cancel any time before then.</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">If you've sold this vehicle, transfer its Moto ID record — including its full service history, invoices and photos — to the new owner. Transfers are free. Enter the new owner's email and we'll send them a link to accept; nothing changes unless they do, and you can cancel any time before then.</div>
       ${opts.error ? `<div class="error">${esc(opts.error)}</div>` : ""}
       <form method="post" action="/vehicles/${vehicle.id}/transfer">
         <div class="field">
@@ -1098,7 +1110,7 @@ function transferInviteForm(opts: {
     token: string;
     vehicle: Vehicle;
     fromName: string;
-    state: "needs_login" | "wrong_account" | "ready";
+    state: "needs_login" | "wrong_account" | "needs_verification" | "ready";
     toEmail: string;
     currentEmail?: string;
 }): string {
@@ -1140,6 +1152,19 @@ function transferInviteForm(opts: {
         </div>`;
     }
 
+    if (opts.state === "needs_verification") {
+        return `
+        <div style="width:100%;max-width:420px">
+          ${header}
+          ${intro}
+          ${card}
+          <div style="font-size:13px;color:var(--ink-muted);margin-bottom:20px">Before you can accept a transfer, please verify your email address — we need to confirm it's really you who controls <strong style="color:var(--ink)">${esc(opts.toEmail)}</strong>. Check your inbox for the verification link we sent when you signed up.</div>
+          <form method="post" action="/verify-email/resend">
+            <button type="submit" class="btn btn-outline" style="width:100%">Resend verification email</button>
+          </form>
+        </div>`;
+    }
+
     return `
     <div style="width:100%;max-width:420px">
       ${header}
@@ -1164,7 +1189,13 @@ vehicles.get("/transfer/:token", async (c) => {
     if (!vehicle || !fromUser) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
 
     const user = c.get("user");
-    const state = !user ? "needs_login" : user.email.toLowerCase() !== transfer.to_email.toLowerCase() ? "wrong_account" : "ready";
+    const state = !user
+        ? "needs_login"
+        : user.email.toLowerCase() !== transfer.to_email.toLowerCase()
+        ? "wrong_account"
+        : !user.email_verified
+        ? "needs_verification"
+        : "ready";
 
     return c.html(
         authShell(
@@ -1182,14 +1213,18 @@ vehicles.post("/transfer/:token/accept", async (c) => {
     const transfer = await getValidVehicleTransfer(c.env.DB, token);
     if (!transfer) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
 
-    if (user.email.toLowerCase() !== transfer.to_email.toLowerCase()) {
+    if (user.email.toLowerCase() !== transfer.to_email.toLowerCase() || !user.email_verified) {
         const vehicle = await getVehicleById(c.env.DB, transfer.vehicle_id);
         const fromUser = await getUserById(c.env.DB, transfer.from_user_id);
         if (!vehicle || !fromUser) return c.html(authShell("Ownership transfer — Moto ID", transferInvalidPage()), 404);
+        // Email match is checked first — an unverified account signed in as
+        // the wrong email should see "wrong account", not "please verify".
+        const state: "wrong_account" | "needs_verification" =
+            user.email.toLowerCase() !== transfer.to_email.toLowerCase() ? "wrong_account" : "needs_verification";
         return c.html(
             authShell(
                 "Ownership transfer — Moto ID",
-                transferInviteForm({ token, vehicle, fromName: fromUser.name, state: "wrong_account", toEmail: transfer.to_email, currentEmail: user.email })
+                transferInviteForm({ token, vehicle, fromName: fromUser.name, state, toEmail: transfer.to_email, currentEmail: user.email })
             ),
             403
         );
