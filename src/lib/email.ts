@@ -2,6 +2,7 @@ import type { Bindings } from "../types";
 import { esc } from "./html";
 
 const DEFAULT_ORDER_NOTIFICATION_EMAIL = "adam_mcgivern@hotmail.com";
+const DEFAULT_OPS_ALERT_EMAIL = "adam_mcgivern@hotmail.com";
 
 /**
  * Sends transactional email via the Resend API (https://resend.com).
@@ -221,6 +222,187 @@ export async function sendMotExpiryReminderEmail(
   await sendEmail(env, {
         to: opts.toEmail,
         subject: `MOT reminder — ${vehicleSummary} due ${opts.motDueDateFormatted}`,
+        html,
+  });
+}
+
+/**
+ * Sent right after signup to confirm the account holder actually controls
+ * the email address they registered with. Fired best-effort (non-blocking)
+ * from POST /signup in src/routes/auth.ts — the new account can sign in and
+ * use the app immediately either way; verification only gates the one
+ * sensitive action that depends on provable inbox control (accepting an
+ * ownership-transfer invite — see POST /transfer/:token/accept in
+ * src/routes/vehicles.ts).
+ */
+export async function sendVerificationEmail(env: Bindings, toEmail: string, verifyUrl: string): Promise<void> {
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6">Welcome to Moto ID. Please confirm this is your email address:</p>
+      <p style="margin:28px 0">
+        <a href="${verifyUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">Verify your email</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">This link expires in 24 hours. You can already sign in and use your account without doing this — verifying is only needed before accepting an ownership transfer sent to this address. If you didn't create a Moto ID account, you can safely ignore this email.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: toEmail,
+        subject: "Verify your email — Moto ID",
+        html,
+  });
+}
+
+/**
+ * Sent to the real account holder when someone else tries to sign up again
+ * with their already-registered email address. Fired from POST /signup in
+ * src/routes/auth.ts in place of telling the *submitter* that the account
+ * already exists (which would let anyone probe which emails have Moto ID
+ * accounts) — the submitter sees the same generic "check your email" response
+ * a brand-new signup would see, while the real owner gets this notice and a
+ * safe way to regain access if the attempt wasn't theirs.
+ */
+/**
+ * Sent to Adam when a scheduled (cron) job throws an error that escaped its
+ * own handling — see runCronJob in src/lib/reminders.ts. Every job already
+ * catches its own expected failure modes (a migration not yet run, one
+ * item's email failing to send) and just console.errors those, so an error
+ * reaching this point is unexpected and worth a human looking at; Adam has
+ * no dashboard watching `wrangler tail`, so this is the only way he'd find
+ * out the daily job broke at all.
+ */
+export async function sendCronFailureAlertEmail(env: Bindings, jobName: string, errorMessage: string): Promise<void> {
+    const to = env.ORDER_NOTIFICATION_EMAIL || DEFAULT_OPS_ALERT_EMAIL;
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:6px">MOTO ID &mdash; SCHEDULED JOB FAILED</div>
+      <div style="display:inline-block;font-size:11px;letter-spacing:0.06em;padding:3px 9px;margin-bottom:22px;background:#111;color:#fff">ACTION MAY BE NEEDED</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px">
+        <tr><td style="padding:6px 10px 6px 0;color:#666;vertical-align:top;white-space:nowrap">Job</td><td style="padding:6px 0;font-family:monospace">${esc(jobName)}</td></tr>
+      </table>
+      <div style="font-size:12px;color:#666;letter-spacing:0.08em;margin-bottom:6px">ERROR</div>
+      <pre style="font-size:12.5px;background:#f7f7f7;padding:14px 16px;white-space:pre-wrap;word-break:break-word;margin:0 0 22px">${esc(errorMessage)}</pre>
+      <p style="font-size:12px;color:#999;margin:0">This is an unexpected failure — the job's own known failure cases are only logged, not emailed. Check wrangler tail / the Cloudflare dashboard for more detail.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to,
+        subject: `Scheduled job failed — ${jobName}`,
+        html,
+  });
+}
+
+/**
+ * One-time nudge sent when a vehicle still has zero documents/photos a week
+ * after registration (see getVehiclesDueZeroDocsReminder in src/lib/db.ts
+ * and business-plan.md Section 11: "Owners could simply not bother
+ * maintaining the record"). Unlike the MOT reminder this isn't opt-in and
+ * never repeats — it's a single nudge, not a recurring one.
+ */
+export async function sendZeroDocumentsReminderEmail(
+    env: Bindings,
+    opts: {
+          toEmail: string;
+          ownerName: string;
+          vehicle: { make: string; model: string; year: number | null; registrationNumber: string; motoIdNumber: string };
+          manageUrl: string;
+    }
+): Promise<void> {
+    const { vehicle: v } = opts;
+    const vehicleSummary = [v.year, v.make, v.model].filter(Boolean).join(" ");
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6">Hi ${esc(opts.ownerName)}, your Moto ID record is still empty:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0 28px;background:#f7f7f7">
+        <tr><td style="padding:14px 16px">
+          <div style="font-weight:600;margin-bottom:4px">${esc(vehicleSummary)}</div>
+          <div style="color:#666;font-family:monospace;font-size:12.5px">${esc(v.registrationNumber)} &middot; No. ${esc(v.motoIdNumber)}</div>
+        </td></tr>
+      </table>
+      <p style="font-size:14px;line-height:1.6;color:#444">A Moto ID is most useful once it actually holds something — a service invoice, an MOT certificate, even a quick photo. It only takes a minute, and it's often easiest to do from your phone right after you take the photo.</p>
+      <p style="margin:28px 0">
+        <a href="${opts.manageUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">Add your first document</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">This is a one-time reminder — we won't send it again for this vehicle.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: opts.toEmail,
+        subject: `Add your first document — ${vehicleSummary}`,
+        html,
+  });
+}
+
+/**
+ * Sent to Adam whenever a charge.refunded or charge.dispute.created Stripe
+ * webhook comes in (src/routes/billing.ts) — a solo-operator business has
+ * no finance team watching the Stripe dashboard, so this is the only way
+ * he finds out a refund/chargeback happened at all, let alone whether the
+ * vehicle credit it paid for was already used (and a plate possibly
+ * already shipped) and needs a manual decision.
+ */
+export async function sendPaymentReviewAlertEmail(
+    env: Bindings,
+    opts: {
+          kind: "refund" | "dispute";
+          customerEmail: string;
+          amountPence: number;
+          currency: string;
+          creditRevoked: boolean;
+    }
+): Promise<void> {
+    const to = env.ORDER_NOTIFICATION_EMAIL || DEFAULT_OPS_ALERT_EMAIL;
+    const amount = `${(opts.amountPence / 100).toFixed(2)} ${opts.currency.toUpperCase()}`;
+    const kindLabel = opts.kind === "refund" ? "Refund" : "Dispute/chargeback";
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:6px">MOTO ID &mdash; ${esc(kindLabel.toUpperCase())}</div>
+      <div style="display:inline-block;font-size:11px;letter-spacing:0.06em;padding:3px 9px;margin-bottom:22px;${
+        opts.creditRevoked ? "background:#eee;color:#555" : "background:#111;color:#fff"
+      }">${opts.creditRevoked ? "CREDIT AUTOMATICALLY REVOKED" : "ACTION NEEDED — CREDIT NOT REVOKED"}</div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:26px">
+        <tr><td style="padding:6px 10px 6px 0;color:#666;vertical-align:top;white-space:nowrap">Customer</td><td style="padding:6px 0">${esc(opts.customerEmail)}</td></tr>
+        <tr><td style="padding:6px 10px 6px 0;color:#666;vertical-align:top;white-space:nowrap">Amount</td><td style="padding:6px 0">${esc(amount)}</td></tr>
+      </table>
+
+      <p style="font-size:13.5px;color:#444;line-height:1.7;margin:0 0 20px">
+        ${
+          opts.creditRevoked
+            ? "This customer still had an unused vehicle credit, so it's been automatically taken back — no further action needed unless you want to follow up with them directly."
+            : "This customer had no unused vehicle credit to take back, which most likely means they've already registered a vehicle and a plate may already be on its way. Please check their account and decide how to handle it (e.g. contact them, hold the shipment if it hasn't gone yet)."
+        }
+      </p>
+
+      <p style="font-size:12px;color:#999;margin:0">Sent automatically from the Stripe webhook handler.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to,
+        subject: `${kindLabel} received — ${amount} (${opts.customerEmail})${opts.creditRevoked ? "" : " — needs review"}`,
+        html,
+  });
+}
+
+export async function sendAccountAlreadyExistsEmail(env: Bindings, toEmail: string, resetUrl: string): Promise<void> {
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6">Someone just tried to create a new Moto ID account using this email address — but you already have one.</p>
+      <p style="font-size:15px;line-height:1.6">If that was you, just sign in instead. If it wasn't you, your account is safe; no changes were made. If you've forgotten your password, you can reset it below.</p>
+      <p style="margin:28px 0">
+        <a href="${resetUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">Reset your password</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">This link expires in 1 hour.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: toEmail,
+        subject: "Someone tried to sign up with your email — Moto ID",
         html,
   });
 }
