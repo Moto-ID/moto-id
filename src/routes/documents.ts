@@ -3,7 +3,7 @@ import type { Env } from "../types";
 import { appShell } from "../lib/layout";
 import { esc } from "../lib/html";
 import { requireAuth } from "../lib/auth";
-import { getVehicleById, listDocuments, addDocument, setDocumentVisibility, getDocumentById, type Folder, type Document } from "../lib/db";
+import { getVehicleById, listDocuments, addDocument, setDocumentVisibility, getDocumentById, deleteDocument, type Folder, type Document } from "../lib/db";
 
 export const documents = new Hono<Env>();
 
@@ -20,6 +20,7 @@ const FOLDER_LABEL: Record<Folder, string> = {
 
 const DOC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/></svg>`;
 const UPLOAD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 15V4"/><polyline points="7.5,8.5 12,4 16.5,8.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>`;
+const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="4,7 20,7"/><path d="M19 7l-1 13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>`;
 
 function isFolder(v: string): v is Folder {
     return v === "service" || v === "invoice" || v === "photo";
@@ -39,6 +40,13 @@ function visibilityToggle(vehicleId: string, folder: Folder, doc: Document): str
         <input type="checkbox" name="isPublic" onchange="this.form.requestSubmit()" ${doc.is_public ? "checked" : ""}>
         Public
       </label>
+    </form>`;
+}
+
+function deleteButton(vehicleId: string, folder: Folder, doc: Document): string {
+    return `
+    <form method="post" action="/vehicles/${vehicleId}/folder/${folder}/documents/${doc.id}/delete" style="margin:0" onsubmit="return confirm('Delete this file? This can&#39;t be undone.')">
+      <button type="submit" title="Delete" aria-label="Delete file" style="background:none;border:none;padding:4px;margin:0;color:var(--ink-subtle);cursor:pointer;display:inline-flex;align-items:center;line-height:0">${TRASH_ICON}</button>
     </form>`;
 }
 
@@ -73,7 +81,10 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
             <div style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.filename)}">${esc(d.filename)}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
               <div class="mono" style="font-size:10.5px;color:var(--ink-subtle)">${new Date(d.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
-              ${visibilityToggle(vehicle.id, folder, d)}
+              <div style="display:flex;align-items:center;gap:10px">
+                ${visibilityToggle(vehicle.id, folder, d)}
+                ${deleteButton(vehicle.id, folder, d)}
+              </div>
             </div>
           </div>
         </div>`;
@@ -84,14 +95,14 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
                 : docs.length
                       ? `
       <div style="border:1px solid var(--hairline);overflow-x:auto">
-        <div style="min-width:720px">
-          <div style="display:grid;grid-template-columns:1fr 160px 190px 90px 90px;gap:12px;padding:12px 20px;border-bottom:1px solid var(--hairline);font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle)">
-            <div>DOCUMENT</div><div>DATE</div><div>ADDED BY</div><div style="text-align:right">SIZE</div><div style="text-align:right">VISIBILITY</div>
+        <div style="min-width:780px">
+          <div style="display:grid;grid-template-columns:1fr 160px 190px 90px 90px 50px;gap:12px;padding:12px 20px;border-bottom:1px solid var(--hairline);font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle)">
+            <div>DOCUMENT</div><div>DATE</div><div>ADDED BY</div><div style="text-align:right">SIZE</div><div style="text-align:right">VISIBILITY</div><div></div>
           </div>
           ${docs
                 .map(
                       (d) => `
-          <div class="row" style="display:grid;grid-template-columns:1fr 160px 190px 90px 90px;gap:12px;padding:16px 20px;border-bottom:1px solid var(--hairline);align-items:center">
+          <div class="row" style="display:grid;grid-template-columns:1fr 160px 190px 90px 90px 50px;gap:12px;padding:16px 20px;border-bottom:1px solid var(--hairline);align-items:center">
             <div style="display:flex;align-items:center;gap:12px;font-size:13.5px;min-width:0">
               ${DOC_ICON}
               <a href="/vehicles/${vehicle.id}/folder/${folder}/documents/${d.id}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.filename)}</a>
@@ -100,6 +111,7 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
             <div style="font-size:12.5px;color:var(--ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.added_by ?? user.name)}</div>
             <div class="mono" style="text-align:right;font-size:12px;color:var(--ink-subtle)">${formatSize(d.size_bytes)}</div>
             <div style="text-align:right">${visibilityToggle(vehicle.id, folder, d)}</div>
+            <div style="text-align:right">${deleteButton(vehicle.id, folder, d)}</div>
           </div>`
                 )
                 .join("")}
@@ -196,6 +208,29 @@ documents.post("/vehicles/:id/folder/:folder/documents/:docId/visibility", requi
     const body = await c.req.parseBody();
     const isPublic = body.isPublic === "on";
     await setDocumentVisibility(c.env.DB, doc.id, isPublic);
+
+    return c.redirect(`/vehicles/${vehicle.id}/folder/${folderParam}`);
+});
+
+documents.post("/vehicles/:id/folder/:folder/documents/:docId/delete", requireAuth, async (c) => {
+    const user = c.get("user")!;
+    const vehicle = await getVehicleById(c.env.DB, c.req.param("id"));
+    const folderParam = c.req.param("folder");
+    if (!vehicle || vehicle.user_id !== user.id || !isFolder(folderParam)) return c.notFound();
+
+    const doc = await getDocumentById(c.env.DB, c.req.param("docId"));
+    if (!doc || doc.vehicle_id !== vehicle.id) return c.notFound();
+
+    if (c.env.DOCS) {
+          try {
+                await c.env.DOCS.delete(doc.r2_key);
+          } catch {
+                // best-effort — same convention as the vehicle-removal flow in
+                // vehicles.ts: a leftover R2 object is harmless once the D1 row is gone
+          }
+    }
+
+    await deleteDocument(c.env.DB, doc.id);
 
     return c.redirect(`/vehicles/${vehicle.id}/folder/${folderParam}`);
 });
