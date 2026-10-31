@@ -41,3 +41,15 @@ export function setSessionCookie(c: any, token: string) {
                                                                 await next();
                                                                 });
                                                                 
+
+/**
+ * Best-effort client IP, used only as a rate-limit key (see checkRateLimit
+ * in lib/db.ts) — never for anything security-critical on its own, since
+ * it's trivially spoofable for a request that doesn't come via Cloudflare.
+ * CF-Connecting-IP is set by Cloudflare itself on every request that
+ * reaches the Worker, so in production this is reliable; the "unknown"
+ * fallback just avoids a crash in any other environment.
+ */
+export function getClientIp(c: any): string {
+  return c.req.header("CF-Connecting-IP") || "unknown";
+}

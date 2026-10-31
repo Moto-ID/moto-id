@@ -8,6 +8,11 @@ export interface CheckoutSessionResult {
   amount_total: number | null;
   currency: string | null;
   metadata: Record<string, string> | null;
+  // The Stripe PaymentIntent id for this session (string form — not
+  // expanded). Recorded against the purchase row so a later
+  // charge.refunded/charge.dispute.created webhook can be matched back to
+  // it. See migrations/0014_stripe_refunds.sql.
+  payment_intent: string | null;
 }
 
 /**
