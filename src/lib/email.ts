@@ -10,7 +10,7 @@ const DEFAULT_OPS_ALERT_EMAIL = "adam_mcgivern@hotmail.com";
  * on the Worker. If either is missing, this throws — callers should catch and
  * surface a friendly error rather than pretending the email sent.
  */
-async function sendEmail(env: Bindings, opts: { to: string; subject: string; html: string }): Promise<void> {
+async function sendEmail(env: Bindings, opts: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
     if (!env.RESEND_API_KEY) {
           throw new Error("RESEND_API_KEY is not configured on this Worker.");
     }
@@ -27,6 +27,7 @@ async function sendEmail(env: Bindings, opts: { to: string; subject: string; htm
               to: [opts.to],
               subject: opts.subject,
               html: opts.html,
+              ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
         }),
   });
 
@@ -404,5 +405,51 @@ export async function sendAccountAlreadyExistsEmail(env: Bindings, toEmail: stri
         to: toEmail,
         subject: "Someone tried to sign up with your email — Moto ID",
         html,
+  });
+}
+
+/**
+ * Relays a buyer's marketplace inquiry straight to the seller's inbox, with
+ * reply_to set to the buyer's own email — so the seller can just hit
+ * "reply" in their own mail client, and the buyer's address is never shown
+ * on the public listing itself. Fired from POST /marketplace/:id/inquire in
+ * src/routes/marketplace.ts. Callers should catch any error this throws
+ * (the inquiry is still saved to listing_inquiries either way, via
+ * addListingInquiry in lib/db.ts) rather than block the buyer's own flow on
+ * a failed notification email.
+ */
+export async function sendListingInquiryEmail(
+    env: Bindings,
+    opts: {
+          sellerEmail: string;
+          buyerName: string;
+          buyerEmail: string;
+          message: string;
+          listingTitle: string;
+          listingUrl: string;
+    }
+): Promise<void> {
+    const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <div style="font-weight:600;font-size:15px;letter-spacing:0.08em;margin-bottom:24px">MOTO ID</div>
+      <p style="font-size:15px;line-height:1.6">You've had an inquiry about your marketplace listing:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0 28px;background:#f7f7f7">
+        <tr><td style="padding:14px 16px">
+          <div style="font-weight:600;margin-bottom:4px">${esc(opts.listingTitle)}</div>
+          <div style="color:#666;font-size:12.5px">From ${esc(opts.buyerName)} &lt;${esc(opts.buyerEmail)}&gt;</div>
+        </td></tr>
+      </table>
+      <p style="font-size:14.5px;line-height:1.7;white-space:pre-wrap;border-left:3px solid #ddd;padding-left:14px;color:#333">${esc(opts.message)}</p>
+      <p style="margin:28px 0">
+        <a href="${opts.listingUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 22px;text-decoration:none;font-size:14px">View your listing</a>
+      </p>
+      <p style="font-size:13px;color:#666;line-height:1.6">Just hit reply to get back to ${esc(opts.buyerName)} directly — this email is addressed so a reply goes straight to them, not to Moto ID.</p>
+    </div>`;
+
+  await sendEmail(env, {
+        to: opts.sellerEmail,
+        subject: `Inquiry about your listing: ${opts.listingTitle}`,
+        html,
+        replyTo: opts.buyerEmail,
   });
 }
