@@ -11,6 +11,7 @@ import {
   markPurchaseRefunded,
   markPurchaseDisputed,
   revokeUnusedCreditIfAvailable,
+  setListingPaid,
 } from "../lib/db";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature } from "../lib/stripe";
 import { sendPaymentReviewAlertEmail } from "../lib/email";
@@ -167,16 +168,31 @@ billing.post("/webhooks/stripe", async (c) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data?.object;
-    const userId: string | undefined = session?.metadata?.userId || session?.client_reference_id;
-    if (session?.id && userId && session.payment_status === "paid") {
-      await grantCreditForCheckoutSession(
-        c.env.DB,
-        session.id,
-        userId,
-        session.amount_total ?? 0,
-        session.currency ?? "gbp",
-        session.payment_intent ?? null
-      );
+    const purpose: string | undefined = session?.metadata?.purpose;
+
+    // A marketplace listing fee (see src/routes/marketplace.ts) uses the
+    // same Checkout Session + webhook plumbing as a Moto ID Kit purchase,
+    // but must never grant a vehicle credit — metadata[purpose] is what
+    // tells the two apart. Any session with no "purpose" metadata (every
+    // kit purchase, unchanged) falls through to the original behaviour.
+    if (purpose === "listing_fee") {
+      const listingId: string | undefined = session?.metadata?.listingId;
+      const paymentIntentId: string | undefined = typeof session?.payment_intent === "string" ? session.payment_intent : null;
+      if (listingId && session.payment_status === "paid") {
+        await setListingPaid(c.env.DB, listingId, paymentIntentId ?? null);
+      }
+    } else {
+      const userId: string | undefined = session?.metadata?.userId || session?.client_reference_id;
+      if (session?.id && userId && session.payment_status === "paid") {
+        await grantCreditForCheckoutSession(
+          c.env.DB,
+          session.id,
+          userId,
+          session.amount_total ?? 0,
+          session.currency ?? "gbp",
+          session.payment_intent ?? null
+        );
+      }
     }
   }
 
