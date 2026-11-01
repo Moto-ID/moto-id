@@ -13,6 +13,7 @@ const NAV_LINKS: Array<[href: string, label: string, key: string]> = [
   ["/#the-mark", "THE MARK", "mark"],
   ["/#see-it-in-action", "THE APP", "app"],
   ["/verify", "VERIFY A VEHICLE", "verify"],
+  ["/marketplace", "MARKETPLACE", "marketplace"],
   ["/pricing", "PRICING", "pricing"],
   ["/#about", "ABOUT", "about"],
   ["/contact", "CONTACT", "contact"],
