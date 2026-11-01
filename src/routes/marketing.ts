@@ -4,44 +4,6 @@ import { marketingShell } from "../lib/layout";
 
 export const marketing = new Hono<Env>();
 
-const MOTO_MARK_SVG = (size: number) => `<svg viewBox="0 0 25 25" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0" y="0" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="2" width="3" height="3" fill="currentColor"/>
-  <rect x="18" y="0" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="20" y="2" width="3" height="3" fill="currentColor"/>
-  <rect x="0" y="18" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="20" width="3" height="3" fill="currentColor"/>
-  <g fill="currentColor">
-    <rect x="9" y="2" width="1" height="1"/><rect x="11" y="2" width="1" height="1"/><rect x="13" y="2" width="1" height="1"/><rect x="15" y="3" width="1" height="1"/>
-    <rect x="9" y="5" width="1" height="1"/><rect x="12" y="5" width="1" height="1"/><rect x="16" y="5" width="1" height="1"/>
-    <rect x="19" y="9" width="1" height="1"/><rect x="21" y="9" width="1" height="1"/><rect x="23" y="9" width="1" height="1"/>
-    <rect x="9" y="9" width="1" height="1"/><rect x="11" y="9" width="1" height="1"/><rect x="13" y="9" width="1" height="1"/><rect x="15" y="9" width="1" height="1"/><rect x="17" y="9" width="1" height="1"/>
-    <rect x="19" y="11" width="1" height="1"/><rect x="9" y="11" width="1" height="1"/><rect x="13" y="11" width="1" height="1"/>
-    <rect x="21" y="13" width="1" height="1"/><rect x="11" y="13" width="1" height="1"/><rect x="15" y="13" width="1" height="1"/><rect x="23" y="13" width="1" height="1"/>
-    <rect x="9" y="15" width="1" height="1"/><rect x="13" y="15" width="1" height="1"/><rect x="17" y="15" width="1" height="1"/><rect x="19" y="15" width="1" height="1"/>
-    <rect x="21" y="16" width="1" height="1"/>
-  </g>
-</svg>`;
-
-// "SEE IT IN ACTION" now shows a real screen-recording-style video of the
-// live product (the Tom Whitmore / Dodge Charger R/T demo account — see
-// deployment-status.md) rather than illustrated icons, so visitors can see
-// the actual dashboard, photo folder, document folder and public verify
-// page before signing up. Built from real screenshots framed in a simple
-// browser-chrome mockup; see scripts/ for how it was generated.
-const PORTAL_VIDEO_SECTION = `
-<!-- SEE IT IN ACTION: real product video -->
-<div id="see-it-in-action" style="padding:100px 56px;border-bottom:1px solid var(--hairline);background:var(--bg-panel)">
-  <div style="font-size:10.5px;letter-spacing:0.18em;color:var(--ink-subtle);margin-bottom:16px;text-align:center">SEE IT IN ACTION</div>
-  <div style="font-family:var(--font-display);font-size:min(34px,7vw);line-height:1.3;text-align:center;margin-bottom:16px;max-width:620px;margin-left:auto;margin-right:auto">Not a mockup &mdash; the real record.</div>
-  <div style="font-size:14.5px;color:var(--ink-muted);text-align:center;margin-bottom:48px;max-width:520px;margin-left:auto;margin-right:auto">A live look at an actual Moto ID account: the private dashboard, its document and photo folders, and the public page anyone scanning the plate lands on.</div>
-
-  <div style="max-width:860px;margin:0 auto">
-    <video controls autoplay muted loop preload="auto" poster="/media/portal-demo-poster.jpg" playsinline style="width:100%;display:block;border:1px solid var(--hairline);box-shadow:0 30px 60px -20px rgba(0,0,0,0.22)">
-      <source src="/media/portal-demo.mp4" type="video/mp4">
-    </video>
-    <div style="font-size:11px;color:var(--ink-subtle);margin-top:14px;text-align:center">A real account &mdash; the 1970 Dodge Charger R/T demo record.</div>
-  </div>
-</div>
-`;
-
 marketing.get("/", (c) => {
   // The installed PWA's manifest start_url is "/?launch=app" (not plain "/")
   // specifically so this one case — the app being freshly opened from a
@@ -62,147 +24,274 @@ marketing.get("/", (c) => {
   // and land on "My Collection", where registering their first vehicle is
   // the very next step.
   const ctaHref = c.get("user") ? "/register-vehicle" : "/signup";
+
+  // Illustrative example vehicles for the verified-record ticker and the
+  // ledger/plate mockups below — no real owner data, no claimed real-time
+  // activity (deliberately not "registered Nm ago": that would read as a
+  // fabricated live-activity signal). Just a static set of plausible makes
+  // to carry the "VERIFIED" visual motif.
+  const TICKER_VEHICLES = [
+    "1975 PORSCHE 911 2.7 RS",
+    "1987 LAND ROVER DEFENDER 90",
+    "1965 FORD MUSTANG FASTBACK",
+    "2003 DUCATI 999",
+    "1998 NISSAN SKYLINE GT-R",
+    "1970 DODGE CHARGER R/T",
+  ];
+  const tickerRow = TICKER_VEHICLES.concat(TICKER_VEHICLES)
+    .map(
+      (v) => `
+      <div style="display:flex;align-items:center;gap:10px;flex:none">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--hv2-verified);display:inline-block"></span>
+        <span style="font-family:var(--font-mono);font-size:11.5px;font-weight:700;letter-spacing:0.08em;color:var(--hv2-verified)">VERIFIED</span>
+        <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--hv2-ink-muted)">${v}</span>
+      </div>`
+    )
+    .join("");
+
+  const CATEGORY_TAGS = ["CLASSIC CARS", "RESTOMODS", "CUSTOM BUILDS", "CAF&Eacute; RACERS", "CHOPPERS", "BESPOKE COACHWORK"];
+  const categoryTagsRow = CATEGORY_TAGS.map((t) => `<span style="font-size:10px;letter-spacing:0.08em;color:var(--hv2-ink-subtle);border:1px solid var(--hv2-line);padding:7px 13px;white-space:nowrap">${t}</span>`).join("");
+
+  // Four simple line icons for the "HOW IT STARTS" steps — drawn fresh for
+  // this redesign rather than reusing a photo/illustration, per the brief.
+  const ICON_ACCOUNT = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3.5 2.5-5.5 5.5-5.5s5.5 2 5.5 5.5"/><line x1="18" y1="8" x2="18" y2="13"/><line x1="15.5" y1="10.5" x2="20.5" y2="10.5"/></svg>`;
+  const ICON_VEHICLE = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15l1.3-4.8A2 2 0 0 1 6.2 9h11.6a2 2 0 0 1 1.9 1.2L21 15"/><rect x="2.3" y="15" width="19.4" height="3.6" rx="1.2"/><circle cx="7" cy="18.6" r="1.4"/><circle cx="17" cy="18.6" r="1.4"/></svg>`;
+  const ICON_RECORD = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
+  const ICON_MARK = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6.5"/><polyline points="9,10 11,12.5 15.5,7"/><path d="M8 16.5 6 21l6-2.5 6 2.5-2-4.5"/></svg>`;
+  const ICON_SEAL_SMALL = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><polyline points="8,12.2 10.8,15 16,9"/></svg>`;
+
+  const STEPS: Array<[string, string, string]> = [
+    [ICON_ACCOUNT, "Create a free account.", "No subscription, no card required &mdash; just an email address."],
+    [ICON_VEHICLE, "Register your vehicle.", "Your first one's free, and its Moto ID number and public page are live straight away."],
+    [ICON_RECORD, "Build the record.", "Documents, invoices and photographs added as the history actually unfolds."],
+    [ICON_MARK, "Mark it, when you're ready.", "Order the laser-engraved plaque any time &mdash; the physical twin of the record you've already built."],
+  ];
+  const stepsRow = STEPS.map(
+    ([icon, title, text], i) => `
+    <div style="padding:0 28px 0 ${i === 0 ? "0" : "28px"};${i > 0 ? "border-left:1px solid var(--hv2-line);" : ""}min-width:0">
+      <div class="hv2-step-icon" style="color:var(--hv2-accent-deep)">${icon}</div>
+      <div style="font-weight:600;font-size:15px;margin:18px 0 8px">${title}</div>
+      <div style="font-size:13.5px;color:var(--hv2-ink-muted);line-height:1.6">${text}</div>
+    </div>`
+  ).join("");
+
   const body = `
     <style>
-      .m-btn-solid-inv:hover{background:oklch(88% 0 0)!important}
+      .hv2{
+        /* Fully monochrome, matching the rest of the site's grayscale palette.
+           The "accent" is a light grey — no hue, just a lighter/darker pair
+           used for CTAs, the verification seal/ticker and status badges. */
+        --hv2-bg: oklch(99% 0 0);
+        --hv2-bg-raised: oklch(96% 0 0);
+        --hv2-ink: oklch(14% 0 0);
+        --hv2-ink-muted: oklch(42% 0 0);
+        --hv2-ink-subtle: oklch(58% 0 0);
+        --hv2-line: oklch(87% 0 0);
+        --hv2-line-strong: oklch(70% 0 0);
+        --hv2-accent: oklch(62% 0 0);
+        --hv2-accent-deep: oklch(40% 0 0);
+        --hv2-verified: var(--hv2-accent);
+        --hv2-dark: oklch(11% 0 0);
+        --hv2-display: 'Fraunces', 'Libre Caslon Text', Georgia, serif;
+        background:var(--hv2-bg);
+        color:var(--hv2-ink);
+      }
+      .hv2 h1, .hv2 h2 { font-family:var(--hv2-display); font-weight:400; margin:0; text-wrap:balance }
+      .hv2 a { color:inherit }
+      .hv2-seal-ring{animation:hv2-spin 46s linear infinite}
+      @keyframes hv2-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+      .hv2-ticker-track{display:flex;gap:44px;padding:0 22px;animation:hv2-ticker 36s linear infinite}
+      .hv2-ticker:hover .hv2-ticker-track{animation-play-state:paused}
+      @keyframes hv2-ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+      .hv2-step-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:1px solid var(--hv2-line-strong);border-radius:50%}
+      .hv2-cta-btn{display:inline-block;background:var(--hv2-accent);color:oklch(99% 0 0);font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:0.03em;padding:16px 32px;border:none;cursor:pointer;transition:background .15s ease}
+      .hv2-cta-btn:hover{background:var(--hv2-accent-deep)}
+      @media (max-width:860px){
+        .hv2-hero-grid{grid-template-columns:1fr!important}
+        .hv2-seal-wrap{order:-1;margin-bottom:12px}
+        .hv2-cols-4{grid-template-columns:1fr!important}
+        .hv2-cols-4 > div{border-left:none!important;border-top:1px solid var(--hv2-line);padding:28px 0 0 0!important;margin-top:4px}
+        .hv2-cols-4 > div:first-child{border-top:none;margin-top:0}
+        .hv2-cols-2{grid-template-columns:1fr!important}
+        .hv2-cols-2 > div:first-child{border-right:none!important;border-bottom:1px solid var(--hv2-line-strong)}
+        .hv2-cols-3{grid-template-columns:1fr!important;gap:28px!important}
+        .hv2-cols-3 > div{border-right:none!important;padding:0 0 24px 0!important;border-bottom:1px solid var(--hv2-line)}
+        .hv2-cols-3 > div:last-child{border-bottom:none;padding-bottom:0!important}
+        .hv2-record-grid{grid-template-columns:1fr!important}
+        .hv2-mark-grid{grid-template-columns:1fr!important}
+      }
     </style>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz@0,9..144;1,9..144&display=swap">
 
-    <!-- HERO: full-bleed dark, overlaid type -->
-    <div style="background:linear-gradient(200deg, oklch(46% 0 0) 0%, oklch(14% 0 0) 55%, oklch(9% 0 0) 100%);position:relative;overflow:hidden;display:flex;flex-direction:column;gap:56px;padding:72px 56px 64px">
-      <div style="position:absolute;inset:0;background:repeating-linear-gradient(112deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)"></div>
+    <div class="hv2">
 
-      <div style="position:relative;z-index:1">
-        <div style="font-size:10.5px;letter-spacing:0.24em;color:oklch(74% 0 0);margin-bottom:26px">DIGITAL PROVENANCE FOR EXCEPTIONAL CARS &amp; MOTORCYCLES</div>
-        <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:min(104px, 11.5vw);line-height:0.88;letter-spacing:-0.01em">Provenance<span style="color:oklch(52% 0 0)">.</span></div>
-      </div>
-
-      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:48px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Create a free account, register your first vehicle at no cost, and its public record is live immediately. Add the laser-marked plaque whenever you're ready.</div>
-          <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
-            <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Create your Moto ID &mdash; free</a>
-            <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
+      <!-- HERO -->
+      <div style="padding:76px 56px 90px;max-width:1280px;margin:0 auto">
+        <div class="hv2-hero-grid" style="display:grid;grid-template-columns:1.15fr 0.85fr;gap:64px;align-items:center">
+          <div>
+            <div style="font-size:10.5px;letter-spacing:0.22em;color:var(--hv2-accent-deep);margin-bottom:22px">DIGITAL PROVENANCE FOR EXCEPTIONAL VEHICLES</div>
+            <h1 style="font-size:min(60px,9vw);line-height:1.08;margin-bottom:26px">A vehicle's record,<br><em style="font-style:italic">made to be believed.</em></h1>
+            <div style="font-size:16px;color:var(--hv2-ink-muted);max-width:460px;margin-bottom:34px;line-height:1.7">Create a free account, register your first vehicle at no cost, and its public verification page goes live immediately. Add a laser-marked plaque, whenever you're ready, for &pound;15.</div>
+            <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:40px">
+              <a href="${ctaHref}" class="hv2-cta-btn">Create your Moto ID &mdash; free</a>
+              <a href="/#the-mark" style="font-size:13px;border-bottom:1px solid var(--hv2-line-strong);padding-bottom:2px">See the plaque &rarr;</a>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">${categoryTagsRow}</div>
+          </div>
+          <div class="hv2-seal-wrap" style="display:flex;flex-direction:column;align-items:center;gap:22px">
+            <div style="position:relative;width:220px;height:220px">
+              <div class="hv2-seal-ring" style="position:absolute;inset:0">
+                <svg viewBox="0 0 200 200" width="220" height="220">
+                  <defs><path id="hv2SealArc" d="M 100,100 m -80,0 a 80,80 0 1,1 160,0 a 80,80 0 1,1 -160,0"/></defs>
+                  <circle cx="100" cy="100" r="92" fill="none" stroke="oklch(62% 0 0)" stroke-width="1.4"/>
+                  <circle cx="100" cy="100" r="80" fill="none" stroke="oklch(62% 0 0)" stroke-width="1" stroke-dasharray="1 5"/>
+                  <circle cx="100" cy="100" r="60" fill="none" stroke="oklch(62% 0 0)" stroke-width="1.2"/>
+                  <text font-family="'Space Mono', monospace" font-size="9.5" letter-spacing="3" fill="oklch(62% 0 0)">
+                    <textPath href="#hv2SealArc" startOffset="1%">VERIFIED &amp; PROVENANCED &bull; VERIFIED &amp; PROVENANCED &bull;</textPath>
+                  </text>
+                </svg>
+              </div>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="oklch(14% 0 0)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,13 10,18 19,7"/></svg>
+                <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em">MOTO ID</div>
+              </div>
+            </div>
+            <div style="font-size:11.5px;color:var(--hv2-ink-subtle);text-align:center;max-width:220px">Live verification &mdash; not a certificate issued once and never checked again.</div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- CATEGORY STRIP -->
-    <div style="padding:24px 56px;border-bottom:1px solid var(--hairline);display:flex;justify-content:center;gap:0;flex-wrap:wrap">
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px;border-right:1px solid var(--hairline)">CLASSIC CARS</div>
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px;border-right:1px solid var(--hairline)">RESTOMODS</div>
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px;border-right:1px solid var(--hairline)">CUSTOM BUILDS</div>
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px;border-right:1px solid var(--hairline)">CAF&Eacute; RACERS</div>
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px;border-right:1px solid var(--hairline)">CHOPPERS</div>
-      <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--ink-subtle);padding:0 20px">BESPOKE COACHWORK</div>
-    </div>
-
-    <!-- ABOUT: merged onto the homepage itself so the nav can smooth-scroll
-         straight to it, rather than linking out to a separate page. -->
-    <div id="about" style="padding:100px 56px">
-      ${PAGE_HEADER("ABOUT", "Built for vehicles that deserve a real history.")}
-      <div style="max-width:680px;margin:-24px auto 0;font-size:14.5px;color:var(--ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
-        <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a laser-engraved plate carrying a unique number and a QR code, paired with a free account where the owner builds a digital record of the vehicle &mdash; registration details, service documents, invoices and photographs. Anyone can scan the plate to see a verified summary of the vehicle's identity and history; only the owner can add to the record.</p>
-
-        <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
-
-        <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
-
-        <p>The account is free, and so is your first vehicle's digital record and public verification page &mdash; no subscription, ever. The laser-marked plate itself is an optional, one-time purchase you can add whenever you're ready. The record transfers with the vehicle, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+      <!-- VERIFIED TICKER -->
+      <div class="hv2-ticker" style="border-top:1px solid var(--hv2-line);border-bottom:1px solid var(--hv2-line);padding:18px 0;overflow:hidden;background:var(--hv2-bg-raised)">
+        <div class="hv2-ticker-track">${tickerRow}</div>
       </div>
-    </div>
 
-    <!-- THE MARK: dark spotlight -->
-    <div id="the-mark" style="background:oklch(11% 0 0);padding:100px 56px;position:relative;overflow:hidden">
-      <div style="position:absolute;left:50%;top:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle, oklch(24% 0 0), transparent 68%)"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1" class="two-col">
-        <div style="display:flex;justify-content:center;align-items:flex-start;gap:22px;flex-wrap:wrap">
-          <img src="/media/hero-plate-illustration.jpg" alt="A hand-drawn illustration of a classic Porsche 911, with a detail inset of its engraved Moto ID plate and QR code fitted to the dashboard" style="width:min(240px,42vw);max-width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(-4deg)">
-          <img src="/media/hero-plate-illustration-moto.jpg" alt="A hand-drawn illustration of a bobber motorcycle, with a detail inset of its engraved Moto ID plate and QR code fitted near the handlebars" style="width:min(240px,42vw);max-width:100%;display:block;margin-top:34px;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(4deg)">
+      <!-- HOW IT STARTS -->
+      <div id="how-it-works" style="padding:110px 56px;max-width:1180px;margin:0 auto">
+        <div style="text-align:center;margin-bottom:64px">
+          <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">HOW IT STARTS</div>
+          <h2 style="font-size:min(40px,7vw);line-height:1.25">Free to register.<br>Yours to prove, from day one.</h2>
         </div>
-        <div>
-          <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK &mdash; OPTIONAL, ADD IT ANY TIME</div>
-          <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:40px;line-height:1.22;margin-bottom:24px">Engraved once.<br>Verified forever.</div>
-          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px;margin-bottom:36px">Your vehicle's record and public verification page go live the moment you register it &mdash; free, with no plate required. When you're ready, order the plaque: engraved to order and fixed where it belongs &mdash; the top of a dashboard, a tank or a tail unit &mdash; carrying the same unique number and a QR code that links straight to the public record.</div>
-          <div style="display:flex;flex-direction:column;gap:18px">
-            <div style="border-top:1px solid oklch(26% 0 0);padding-top:14px">
-              <span style="font-weight:600;font-size:13.5px;color:oklch(97% 0 0)">For cars &mdash; </span><span style="font-size:13.5px;color:oklch(74% 0 0)">fixed at the top of the dashboard, in clear view.</span>
-            </div>
-            <div style="border-top:1px solid oklch(26% 0 0);padding-top:14px">
-              <span style="font-weight:600;font-size:13.5px;color:oklch(97% 0 0)">For motorcycles &mdash; </span><span style="font-size:13.5px;color:oklch(74% 0 0)">fixed wherever suits the build: tank, tail or under the seat.</span>
+        <div class="hv2-cols-4" style="display:grid;grid-template-columns:repeat(4,1fr)">${stepsRow}</div>
+      </div>
+
+      <!-- THE RECORD -->
+      <div id="see-it-in-action" style="padding:110px 56px;background:var(--hv2-bg-raised);border-top:1px solid var(--hv2-line);border-bottom:1px solid var(--hv2-line)">
+        <div class="hv2-record-grid" style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:0.95fr 1.05fr;gap:72px;align-items:center">
+          <div>
+            <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">THE RECORD</div>
+            <h2 style="font-size:min(38px,7vw);line-height:1.3;margin-bottom:20px">Everything about the vehicle, in one verifiable place.</h2>
+            <div style="font-size:14.5px;color:var(--hv2-ink-muted);line-height:1.75;max-width:420px;margin-bottom:24px">Registration, specification, service history, invoices and photographs &mdash; added by the owner as the work actually happens, and checkable by anyone who scans the plate or opens the link.</div>
+            <a href="/verify" style="font-size:13px;border-bottom:1px solid var(--hv2-line-strong);padding-bottom:2px">Search a real record &rarr;</a>
+          </div>
+          <div>
+            <div style="background:var(--hv2-bg);border:1px solid var(--hv2-line-strong);max-width:420px;margin:0 auto">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--hv2-line)">
+                <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;color:var(--hv2-ink-subtle)">MOTO ID &middot; VEHICLE RECORD</div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--hv2-verified);display:inline-block"></span><span style="font-size:9.5px;letter-spacing:0.1em;color:var(--hv2-verified);font-weight:700">LIVE</span></div>
+              </div>
+              <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;gap:12px"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">VEHICLE</span><span style="font-size:12.5px;font-weight:600;text-align:right">1975 Porsche 911 2.7 RS</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">VIN</span><span style="font-family:var(--font-mono);font-size:12px;text-align:right">9115600641</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">REGISTRATION</span><span style="font-family:var(--font-mono);font-size:12px;text-align:right">AB12 CDE</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">MOT STATUS</span><span style="font-size:10.5px;font-weight:700;letter-spacing:0.04em;color:var(--hv2-verified);border:1px solid var(--hv2-verified);padding:3px 8px">VALID &middot; EXP MAR 2027</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">DOCUMENTS</span><span style="font-size:12.5px;text-align:right">14 files</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span style="font-size:11.5px;color:var(--hv2-ink-subtle)">PHOTOS</span><span style="font-size:12.5px;text-align:right">32 files</span></div>
+              </div>
+              <div style="font-size:10.5px;color:var(--hv2-ink-subtle);text-align:center;padding:10px;border-top:1px solid var(--hv2-line)">Illustrative example</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Real plate photo (swapped in for the laser-marking video, 2026-09-28) -->
-      <div style="max-width:900px;margin:90px auto 0;position:relative;z-index:1;border-top:1px solid oklch(24% 0 0);padding-top:64px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center" class="two-col">
-        <div>
-          <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">HOW IT'S MARKED</div>
-          <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:28px;line-height:1.3;margin-bottom:20px">Laser-annealed, not printed.</div>
-          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px">Every plate is marked on our own laser, tuned to anneal the stainless steel's surface rather than just etch or print it. Annealing changes the metal's own oxide layer instead of cutting through or coating it, so the mark won't fade, flake or rust &mdash; it's part of the steel for the life of the vehicle.</div>
-        </div>
-        <div>
-          <img src="/media/plate-example.jpg" alt="A Moto ID plate laser-marked with a Porsche 911's registration and Moto ID number, next to its QR code" style="width:100%;display:block;border:1px solid oklch(24% 0 0);box-shadow:0 30px 60px -20px rgba(0,0,0,0.6)">
-          <div style="font-size:11px;color:oklch(52% 0 0);margin-top:10px;text-align:center">One of our plates &mdash; laser-marked, not printed.</div>
-        </div>
-      </div>
-    </div>
-
-    ${PORTAL_VIDEO_SECTION}
-
-    <!-- HOW IT WORKS: ghost numerals -->
-    <div id="how-it-works" style="padding:100px 56px;border-bottom:1px solid var(--hairline)">
-      <div style="font-size:10.5px;letter-spacing:0.18em;color:var(--ink-subtle);margin-bottom:56px;text-align:center">HOW IT WORKS</div>
-      <div style="max-width:820px;margin:0 auto">
-
-        <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
-          <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">01</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Create a free account. </span><span style="font-size:15px;color:var(--ink-muted)">No subscription, no card required &mdash; just an email address.</span></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
-          <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">02</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Register your vehicle. </span><span style="font-size:15px;color:var(--ink-muted)">Your first one's free, and its Moto ID number and public verification page are live straight away.</span></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
-          <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">03</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Build the record. </span><span style="font-size:15px;color:var(--ink-muted)">Documents, invoices and photographs added as the history actually unfolds.</span></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);position:relative">
-          <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">04</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Mark it, when you're ready. </span><span style="font-size:15px;color:var(--ink-muted)">Order the laser-engraved plaque any time &mdash; the physical twin of the record you've already built.</span></div>
+      <!-- THE MARK: optional plaque -->
+      <div id="the-mark" style="padding:110px 56px;max-width:1100px;margin:0 auto">
+        <div class="hv2-mark-grid" style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:72px;align-items:center">
+          <div>
+            <div style="background:linear-gradient(135deg, oklch(80% 0.01 260), oklch(70% 0.012 260) 45%, oklch(76% 0.01 260));border:1px solid oklch(60% 0.015 260);padding:28px 26px;max-width:380px;margin:0 auto;box-shadow:0 24px 48px -18px rgba(0,0,0,0.18)">
+              <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;color:oklch(30% 0.01 260);margin-bottom:16px">MOTO ID &middot; AUTHENTICATED</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+                <div>
+                  <div style="font-family:var(--font-mono);font-weight:700;font-size:25px;letter-spacing:0.05em;color:oklch(20% 0.01 260)">&#8470; 118822</div>
+                  <div style="font-size:11px;color:oklch(34% 0.01 260);margin-top:4px">1975 PORSCHE 911 2.7 RS</div>
+                </div>
+                <div style="color:oklch(24% 0.01 260);flex:none">${ICON_SEAL_SMALL}</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">THE MARK &mdash; OPTIONAL, ADD IT ANY TIME</div>
+            <h2 style="font-size:min(38px,7vw);line-height:1.3;margin-bottom:20px">Engraved once.<br>Verified forever.</h2>
+            <div style="font-size:14.5px;color:var(--hv2-ink-muted);line-height:1.75;max-width:440px;margin-bottom:28px">Your vehicle's record and public page go live the moment you register it &mdash; free, with no plate required. When you're ready, order the plaque: laser-annealed stainless steel, engraved to order, carrying the same Moto ID number and a QR code straight to the public record. &pound;15, posted to you.</div>
+            <a href="/pricing" style="font-size:13px;border-bottom:1px solid var(--hv2-line-strong);padding-bottom:2px">See full pricing &rarr;</a>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- FOR THE DISCERNING OWNER -->
-    <div style="padding:100px 56px;border-bottom:1px solid var(--hairline)">
-      <div style="font-family:var(--font-display);font-style:italic;font-size:min(44px,7vw);line-height:1.3;text-align:center;margin-bottom:64px;max-width:640px;margin-left:auto;margin-right:auto">For the owner who cares how the story is told.</div>
-      <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:32px;max-width:960px;margin:0 auto" class="three-col">
-        <div style="padding-right:36px;border-right:1px solid var(--hairline)">
-          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:14px">AGAINST COUNTERFEIT HISTORY</div>
-          <div style="font-size:13.5px;color:var(--ink-muted)">A record built and dated by the owner over time is far harder to fake than a single certificate issued once.</div>
-        </div>
-        <div style="padding:0 36px;border-right:1px solid var(--hairline)">
-          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:14px">FOR WORK DONE BY HAND</div>
-          <div style="font-size:13.5px;color:var(--ink-muted)">Restore or maintain it yourself? Log parts, dates and photographs, so the work counts as real, dated history.</div>
-        </div>
-        <div style="padding-left:36px">
-          <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:14px">FOR TRUE CONDITION</div>
-          <div style="font-size:13.5px;color:var(--ink-muted)">Photographs and documents build a timeline a buyer, insurer or club can trust at a glance.</div>
+      <!-- FOR THE DISCERNING OWNER -->
+      <div style="padding:100px 56px;border-top:1px solid var(--hv2-line)">
+        <div style="font-family:var(--hv2-display);font-style:italic;font-size:min(42px,7vw);line-height:1.3;text-align:center;margin-bottom:64px;max-width:640px;margin-left:auto;margin-right:auto">For the owner who cares how the story is told.</div>
+        <div class="hv2-cols-3" style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:32px;max-width:960px;margin:0 auto">
+          <div style="padding-right:36px;border-right:1px solid var(--hv2-line)">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--hv2-ink-subtle);margin-bottom:14px">AGAINST COUNTERFEIT HISTORY</div>
+            <div style="font-size:13.5px;color:var(--hv2-ink-muted)">A record built and dated by the owner over time is far harder to fake than a single certificate issued once.</div>
+          </div>
+          <div style="padding:0 36px;border-right:1px solid var(--hv2-line)">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--hv2-ink-subtle);margin-bottom:14px">FOR WORK DONE BY HAND</div>
+            <div style="font-size:13.5px;color:var(--hv2-ink-muted)">Restore or maintain it yourself? Log parts, dates and photographs, so the work counts as real, dated history.</div>
+          </div>
+          <div style="padding-left:36px">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--hv2-ink-subtle);margin-bottom:14px">FOR TRUE CONDITION</div>
+            <div style="font-size:13.5px;color:var(--hv2-ink-muted)">Photographs and documents build a timeline a buyer, insurer or club can trust at a glance.</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- CTA: full-bleed dark -->
-    <div style="background:oklch(11% 0 0);padding:110px 56px;text-align:center">
-      <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-style:italic;font-size:min(34px,7vw);max-width:520px;margin:0 auto 34px">Give your build a provenance worthy of it.</div>
-      <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Create your Moto ID &mdash; free</a>
-    </div>
+      <!-- PRICING RECAP -->
+      <div style="padding:90px 56px 110px;max-width:900px;margin:0 auto">
+        <div style="text-align:center;margin-bottom:48px">
+          <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">PRICING</div>
+          <h2 style="font-size:min(36px,7vw)">Free to start. Pay only for what you add.</h2>
+        </div>
+        <div class="hv2-cols-2" style="display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--hv2-line-strong)">
+          <div style="padding:36px;border-right:1px solid var(--hv2-line-strong)">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--hv2-ink-subtle);margin-bottom:10px">FREE ACCOUNT</div>
+            <div style="font-family:var(--hv2-display);font-size:30px;margin-bottom:8px">&pound;0</div>
+            <div style="font-size:13px;color:var(--hv2-ink-muted)">Your account and first vehicle, free for as long as you keep it.</div>
+          </div>
+          <div style="padding:36px">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--hv2-ink-subtle);margin-bottom:10px">LASER-MARKED PLAQUE</div>
+            <div style="font-family:var(--hv2-display);font-size:30px;margin-bottom:8px">&pound;15</div>
+            <div style="font-size:13px;color:var(--hv2-ink-muted)">Optional, per vehicle &mdash; order any time, no rush.</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:28px"><a href="/pricing" style="font-size:13px;border-bottom:1px solid var(--hv2-line-strong);padding-bottom:2px">See the full price list &rarr;</a></div>
+      </div>
 
-    <style>
-      @media (max-width:820px){ .two-col{grid-template-columns:1fr!important} .three-col{grid-template-columns:1fr!important} .three-col > div{border-right:none!important;border-bottom:1px solid var(--hairline);padding:0 0 24px!important} .three-col > div:last-child{border-bottom:none} }
-    </style>
+      <!-- ABOUT -->
+      <div id="about" style="padding:100px 56px;border-top:1px solid var(--hv2-line)">
+        <div style="text-align:center;margin-bottom:48px">
+          <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">ABOUT</div>
+          <h2 style="font-size:min(38px,7vw);line-height:1.3;max-width:640px;margin:0 auto">Built for vehicles that deserve a real history.</h2>
+        </div>
+        <div style="max-width:680px;margin:0 auto;font-size:14.5px;color:var(--hv2-ink-muted);line-height:1.8;display:flex;flex-direction:column;gap:22px">
+          <p>Moto ID gives a car or motorcycle a permanent, verifiable identity: a free account where the owner builds a digital record of the vehicle &mdash; registration details, service documents, invoices and photographs &mdash; with a public page anyone can check. A laser-marked plaque, carrying the same number and a QR code, is there whenever you want the physical mark to match it.</p>
+
+          <p>It exists because paper histories are easy to lose, easy to forge and impossible to check independently. A stack of invoices or a seller's word is only ever as good as the trust you place in the person handing it to you. Owners who service and restore their own vehicles have it worse still &mdash; a main dealer stamp counts for something at resale, while a logbook of an owner's own labour and parts usually counts for nothing, however carefully it was kept.</p>
+
+          <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
+
+          <p>The account is free, and so is your first vehicle's digital record and public verification page &mdash; no subscription, ever. The laser-marked plaque itself is an optional, one-time purchase you can add whenever you're ready. The record transfers with the vehicle, free of charge, when it's sold.</p>
+        </div>
+      </div>
+
+      <!-- FINAL CTA -->
+      <div style="background:var(--hv2-dark);padding:120px 56px;text-align:center">
+        <div style="font-family:var(--hv2-display);font-style:italic;color:oklch(97% 0 0);font-size:min(40px,7vw);max-width:560px;margin:0 auto 36px;line-height:1.3">Give your vehicle a record worth trusting.</div>
+        <a href="${ctaHref}" class="hv2-cta-btn">Create your Moto ID &mdash; free</a>
+      </div>
+
+    </div>
   `;
   return c.html(marketingShell("Moto ID — Digital provenance for exceptional vehicles", body, { activeNav: "" }));
 });
