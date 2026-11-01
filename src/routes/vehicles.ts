@@ -28,6 +28,7 @@ import {
     setMotHistoryVisibility,
     setMileageVisibility,
     setMotReminderOptIn,
+    getLatestListingForVehicle,
     type Vehicle,
     type MotTestRow,
     type MotDefectRow,
@@ -577,6 +578,8 @@ vehicles.get("/vehicles/:id/photo", requireAuth, async (c) => {
                                                                                             const activity = await recentActivity(c.env.DB, vehicle.id, 6);
                                                                                             const pendingTransfer = await getPendingTransferForVehicle(c.env.DB, vehicle.id);
                                                                                             const ownershipHistory = await getOwnershipHistory(c.env.DB, vehicle.id);
+                                                                                            const listing = await getLatestListingForVehicle(c.env.DB, vehicle.id);
+                                                                                            const sellLinkLabel = listing?.status === "active" ? "Manage listing" : listing?.status === "pending_payment" ? "Complete listing payment" : "List for sale";
                                                                                             const mot = await getMotTestsSafely(c.env.DB, vehicle.id);
                                                                                             const mileageReadingCount = countMileageReadings(mot);
                                                                                             const ownerCount = 1 + ownershipHistory.length;
@@ -652,6 +655,7 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                       ? `<div style="border:1px solid var(--hairline);padding:14px 16px;font-size:12px;color:var(--ink-muted);line-height:1.6">Transfer pending to <strong style="color:var(--ink)">${esc(pendingTransfer.to_email)}</strong><form method="post" action="/vehicles/${vehicle.id}/transfer/cancel" style="margin-top:8px"><button type="submit" style="border:none;background:none;padding:0;font-size:12px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Cancel transfer</button></form></div>`
                                                                                                                       : `<a href="/vehicles/${vehicle.id}/transfer" class="btn btn-outline" style="text-align:center">Transfer ownership</a>`
                                                                                                                     }
+                                                                                                                    <a href="/vehicles/${vehicle.id}/sell" class="btn btn-outline" style="text-align:center">${sellLinkLabel}</a>
                                                                                                                     <a href="/vehicles/${vehicle.id}/remove" style="display:block;text-align:center;font-size:12.5px;color:oklch(45% 0.18 25);text-decoration:underline;text-underline-offset:3px;margin-top:4px">Remove vehicle</a>
                                                                                                                           </div>
                                                                                                                       
