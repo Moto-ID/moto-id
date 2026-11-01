@@ -78,7 +78,7 @@ marketing.get("/", (c) => {
 
       <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:48px;flex-wrap:wrap">
         <div>
-          <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Held to the same standard as the vehicle it belongs to &mdash; permanently engraved, publicly verifiable, and yours to prove, at any time.</div>
+          <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Create a free account, register your first vehicle at no cost, and its public record is live immediately. Add the laser-marked plaque whenever you're ready.</div>
           <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
             <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Create your Moto ID &mdash; free</a>
             <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
@@ -121,9 +121,9 @@ marketing.get("/", (c) => {
           <img src="/media/hero-plate-illustration-moto.jpg" alt="A hand-drawn illustration of a bobber motorcycle, with a detail inset of its engraved Moto ID plate and QR code fitted near the handlebars" style="width:min(240px,42vw);max-width:100%;display:block;margin-top:34px;border:1px solid oklch(24% 0 0);box-shadow:0 40px 70px -20px rgba(0,0,0,0.7);transform:rotate(4deg)">
         </div>
         <div>
-          <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK</div>
+          <div style="font-size:10.5px;letter-spacing:0.18em;color:oklch(52% 0 0);margin-bottom:22px">THE MARK &mdash; OPTIONAL, ADD IT ANY TIME</div>
           <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-size:40px;line-height:1.22;margin-bottom:24px">Engraved once.<br>Verified forever.</div>
-          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px;margin-bottom:36px">Each plate is engraved to order and fixed where it belongs &mdash; the top of a dashboard, a tank or a tail unit &mdash; carrying a unique number and a QR code that links straight to the vehicle's public record.</div>
+          <div style="font-size:14.5px;color:oklch(74% 0 0);max-width:420px;margin-bottom:36px">Your vehicle's record and public verification page go live the moment you register it &mdash; free, with no plate required. When you're ready, order the plaque: engraved to order and fixed where it belongs &mdash; the top of a dashboard, a tank or a tail unit &mdash; carrying the same unique number and a QR code that links straight to the public record.</div>
           <div style="display:flex;flex-direction:column;gap:18px">
             <div style="border-top:1px solid oklch(26% 0 0);padding-top:14px">
               <span style="font-weight:600;font-size:13.5px;color:oklch(97% 0 0)">For cars &mdash; </span><span style="font-size:13.5px;color:oklch(74% 0 0)">fixed at the top of the dashboard, in clear view.</span>
@@ -158,19 +158,19 @@ marketing.get("/", (c) => {
 
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">01</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Commission your plate. </span><span style="font-size:15px;color:var(--ink-muted)">Tell us about the vehicle; it's engraved to order and posted straight to you.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Create a free account. </span><span style="font-size:15px;color:var(--ink-muted)">No subscription, no card required &mdash; just an email address.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">02</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Fix it in place. </span><span style="font-size:15px;color:var(--ink-muted)">On the dashboard, tank or wherever suits the build &mdash; in clear view, ready to scan.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Register your vehicle. </span><span style="font-size:15px;color:var(--ink-muted)">Your first one's free, and its Moto ID number and public verification page are live straight away.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">03</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Build the record. </span><span style="font-size:15px;color:var(--ink-muted)">Registration and specification, then documents, invoices and photographs as the history unfolds.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Build the record. </span><span style="font-size:15px;color:var(--ink-muted)">Documents, invoices and photographs added as the history actually unfolds.</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:22px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);position:relative">
           <div style="font-family:var(--font-display);font-size:min(120px,20vw);line-height:1;color:var(--bg-panel);position:absolute;left:-10px;top:50%;transform:translateY(-52%);z-index:0;user-select:none">04</div>
-          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Prove it, always. </span><span style="font-size:15px;color:var(--ink-muted)">A verified scan for a buyer, an insurer, or your own record, set against a history that can't be rewritten.</span></div>
+          <div style="flex:1 1 0;position:relative;z-index:1;padding-left:min(150px,26vw)"><span style="font-weight:600;font-size:16px">Mark it, when you're ready. </span><span style="font-size:15px;color:var(--ink-muted)">Order the laser-engraved plaque any time &mdash; the physical twin of the record you've already built.</span></div>
         </div>
       </div>
     </div>
