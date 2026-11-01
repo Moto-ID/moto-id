@@ -149,35 +149,72 @@ marketplace.get("/marketplace/:id", async (c) => {
   const sent = c.req.query("sent") === "1";
   const error = c.req.query("error");
 
-  const photoBlock = vehicle.photo_r2_key
-    ? `<img src="/marketplace/${listing.id}/photo" alt="${esc(vehicle.make)} ${esc(vehicle.model)}" style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block;border:1px solid var(--hairline)">`
-    : `<div style="width:100%;aspect-ratio:16/10;background:var(--bg-panel);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-subtle);letter-spacing:0.06em">NO PHOTO SUPPLIED</div>`;
-
   // The whole Photos folder from the vehicle's own Moto ID profile is shown
-  // here too, not just the single cover photo above — but only the photos
-  // the owner has already marked public (same is_public flag the verify
-  // page honours), never a private upload. A listing is already public by
+  // here too, not just the single cover photo — but only the photos the
+  // owner has already marked public (same is_public flag the verify page
+  // honours), never a private upload. A listing is already public by
   // definition, but the gallery still respects whatever the owner ticked on
   // each individual photo, same as everywhere else on the site.
   const publicDocs = await listPublicDocuments(c.env.DB, vehicle.id);
   const publicPhotos = publicDocs.filter((d) => d.folder === "photo" && d.content_type?.startsWith("image/"));
-  const gallerySection =
-    publicPhotos.length > 0
-      ? `
-          <div style="margin-top:28px">
-            <div style="font-weight:600;font-size:13px;margin-bottom:12px">Photos (${publicPhotos.length})</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px">
-              ${publicPhotos
-                .map(
-                  (d) => `
-              <a href="/marketplace/${listing.id}/documents/${d.id}" target="_blank">
-                <img src="/marketplace/${listing.id}/documents/${d.id}" alt="${esc(d.filename)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--hairline)">
-              </a>`
-                )
-                .join("")}
-            </div>
-          </div>`
-      : "";
+
+  // Cover photo first (if the listing has one), then the rest of the public
+  // Photos folder, all shown as a single slider rather than a big cover shot
+  // with a separate thumbnail grid underneath — one image visible at a time,
+  // with left/right arrows (and arrow-key support) to step through the rest.
+  const sliderPhotos: { src: string; alt: string }[] = [];
+  if (vehicle.photo_r2_key) {
+    sliderPhotos.push({ src: `/marketplace/${listing.id}/photo`, alt: `${vehicle.make} ${vehicle.model}` });
+  }
+  for (const d of publicPhotos) {
+    sliderPhotos.push({ src: `/marketplace/${listing.id}/documents/${d.id}`, alt: d.filename || `${vehicle.make} ${vehicle.model} photo` });
+  }
+
+  const sliderId = `photo-slider-${listing.id}`;
+  const photoBlock =
+    sliderPhotos.length === 0
+      ? `<div style="width:100%;aspect-ratio:16/10;background:var(--bg-panel);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-subtle);letter-spacing:0.06em">NO PHOTO SUPPLIED</div>`
+      : `
+          <div id="${sliderId}" style="position:relative">
+            <img class="photo-slider-img" src="${esc(sliderPhotos[0].src)}" alt="${esc(sliderPhotos[0].alt)}" style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block;border:1px solid var(--hairline)">
+            ${
+              sliderPhotos.length > 1
+                ? `
+            <button type="button" class="photo-slider-prev" aria-label="Previous photo" style="position:absolute;top:50%;left:12px;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center">&larr;</button>
+            <button type="button" class="photo-slider-next" aria-label="Next photo" style="position:absolute;top:50%;right:12px;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center">&rarr;</button>
+            <div class="photo-slider-count" style="position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-family:var(--font-mono);padding:3px 9px;border-radius:12px">1 / ${sliderPhotos.length}</div>`
+                : ""
+            }
+          </div>
+          ${
+            sliderPhotos.length > 1
+              ? `<script>
+            (function () {
+              var root = document.getElementById(${JSON.stringify(sliderId)});
+              if (!root) return;
+              var images = ${JSON.stringify(sliderPhotos).replace(/</g, "\\u003c")};
+              var idx = 0;
+              var img = root.querySelector(".photo-slider-img");
+              var count = root.querySelector(".photo-slider-count");
+              function show(i) {
+                idx = (i + images.length) % images.length;
+                img.src = images[idx].src;
+                img.alt = images[idx].alt;
+                if (count) count.textContent = (idx + 1) + " / " + images.length;
+              }
+              var prev = root.querySelector(".photo-slider-prev");
+              var next = root.querySelector(".photo-slider-next");
+              if (prev) prev.addEventListener("click", function () { show(idx - 1); });
+              if (next) next.addEventListener("click", function () { show(idx + 1); });
+              root.tabIndex = 0;
+              root.addEventListener("keydown", function (e) {
+                if (e.key === "ArrowLeft") show(idx - 1);
+                if (e.key === "ArrowRight") show(idx + 1);
+              });
+            })();
+          </script>`
+              : ""
+          }`;
 
   // MOT history and mileage history on a marketplace listing honour exactly
   // the same opt-in flags as the public /verify page (vehicle.mot_history_public
@@ -240,7 +277,6 @@ marketplace.get("/marketplace/:id", async (c) => {
             <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:24px">${esc(subtitle || "—")}${listing.location ? ` &middot; ${esc(listing.location)}` : ""}</div>
             <div style="font-size:14px;color:var(--ink-muted);line-height:1.8">${nl2br(listing.description) || "<em>No further description provided.</em>"}</div>
           </div>
-          ${gallerySection}
           ${motHistorySection}
           ${mileageSection}
         </div>
