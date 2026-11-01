@@ -103,8 +103,8 @@ marketing.get("/", (c) => {
       .hv2-ticker:hover .hv2-ticker-track{animation-play-state:paused}
       @keyframes hv2-ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
       .hv2-step-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:1px solid var(--hv2-line-strong);border-radius:50%}
-      .hv2-cta-btn{display:inline-block;background:var(--hv2-accent);color:oklch(99% 0 0);font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:0.03em;padding:16px 32px;border:none;cursor:pointer;transition:background .15s ease}
-      .hv2-cta-btn:hover{background:var(--hv2-accent-deep)}
+      .hv2-cta-btn{display:inline-block;background:oklch(80% 0 0);color:var(--hv2-ink);font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:0.03em;padding:16px 32px;border:none;box-shadow:inset 0 0 0 1px var(--hv2-line-strong);cursor:pointer;transition:background .15s ease,color .15s ease}
+      .hv2-cta-btn:hover{background:var(--hv2-accent-deep);color:oklch(99% 0 0)}
       @media (max-width:860px){
         .hv2-hero-grid{grid-template-columns:1fr!important}
         .hv2-seal-wrap{order:-1;margin-bottom:12px}
