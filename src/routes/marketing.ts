@@ -58,7 +58,6 @@ marketing.get("/", (c) => {
   const ICON_VEHICLE = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15l1.3-4.8A2 2 0 0 1 6.2 9h11.6a2 2 0 0 1 1.9 1.2L21 15"/><rect x="2.3" y="15" width="19.4" height="3.6" rx="1.2"/><circle cx="7" cy="18.6" r="1.4"/><circle cx="17" cy="18.6" r="1.4"/></svg>`;
   const ICON_RECORD = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`;
   const ICON_MARK = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6.5"/><polyline points="9,10 11,12.5 15.5,7"/><path d="M8 16.5 6 21l6-2.5 6 2.5-2-4.5"/></svg>`;
-  const ICON_SEAL_SMALL = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><polyline points="8,12.2 10.8,15 16,9"/></svg>`;
 
   const STEPS: Array<[string, string, string]> = [
     [ICON_ACCOUNT, "Create a free account.", "No subscription, no card required &mdash; just an email address."],
@@ -208,16 +207,7 @@ marketing.get("/", (c) => {
       <div id="the-mark" style="padding:110px 56px;max-width:1100px;margin:0 auto">
         <div class="hv2-mark-grid" style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:72px;align-items:center">
           <div>
-            <div style="background:linear-gradient(135deg, oklch(80% 0.01 260), oklch(70% 0.012 260) 45%, oklch(76% 0.01 260));border:1px solid oklch(60% 0.015 260);padding:28px 26px;max-width:380px;margin:0 auto;box-shadow:0 24px 48px -18px rgba(0,0,0,0.18)">
-              <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;color:oklch(30% 0.01 260);margin-bottom:16px">MOTO ID &middot; AUTHENTICATED</div>
-              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
-                <div>
-                  <div style="font-family:var(--font-mono);font-weight:700;font-size:25px;letter-spacing:0.05em;color:oklch(20% 0.01 260)">&#8470; 118822</div>
-                  <div style="font-size:11px;color:oklch(34% 0.01 260);margin-top:4px">1975 PORSCHE 911 2.7 RS</div>
-                </div>
-                <div style="color:oklch(24% 0.01 260);flex:none">${ICON_SEAL_SMALL}</div>
-              </div>
-            </div>
+            <img src="/media/plate-example.jpg" alt="A Moto ID plate laser-marked with a Porsche 911's registration and Moto ID number, next to its QR code" style="width:100%;max-width:420px;display:block;margin:0 auto;border:1px solid var(--hv2-line);box-shadow:0 30px 60px -20px rgba(0,0,0,0.35)">
           </div>
           <div>
             <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--hv2-accent-deep);margin-bottom:16px">THE MARK &mdash; OPTIONAL, ADD IT ANY TIME</div>
