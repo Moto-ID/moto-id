@@ -33,6 +33,12 @@ export async function createCheckoutSession(
     productDescription: string;
     successUrl: string;
     cancelUrl: string;
+    // Extra metadata merged in alongside metadata[userId] below — used to
+    // tell a session's purpose apart in the webhook (e.g. {purpose:
+    // "listing_fee", listingId} for a marketplace listing fee, vs. a plain
+    // Moto ID Kit purchase, which passes none). See src/routes/billing.ts's
+    // webhook handler and src/routes/marketplace.ts.
+    extraMetadata?: Record<string, string>;
   }
 ): Promise<{ id: string; url: string }> {
   if (!env.STRIPE_SECRET_KEY) {
@@ -46,6 +52,9 @@ export async function createCheckoutSession(
   params.set("cancel_url", opts.cancelUrl);
   params.set("client_reference_id", opts.userId);
   params.set("metadata[userId]", opts.userId);
+  for (const [key, value] of Object.entries(opts.extraMetadata ?? {})) {
+    params.set(`metadata[${key}]`, value);
+  }
   params.set("line_items[0][quantity]", "1");
   params.set("line_items[0][price_data][currency]", "gbp");
   params.set("line_items[0][price_data][unit_amount]", String(opts.amountPence));
