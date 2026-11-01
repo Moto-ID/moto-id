@@ -73,6 +73,22 @@ export interface Vehicle {
     ship_city: string | null;
     ship_postal_code: string | null;
     ship_country: string | null;
+    // Pricing-restructure fields — see migrations/0018_pricing_restructure.sql.
+    // The laser-marked plaque is now a separate, optional, per-vehicle
+    // purchase made any time after registration (£15), rather than bundled
+    // into registration itself — 'none' until the owner starts an order,
+    // 'pending_payment' once they've submitted shipping details and been
+    // sent to Stripe Checkout, 'paid' once that payment completes. The
+    // ship_* columns above are reused for the plaque's shipping address,
+    // populated when the order starts rather than at registration.
+    plaque_status: "none" | "pending_payment" | "paid";
+    plaque_paid_at: string | null;
+    // Free tier is 10 photos and 10 combined service+invoice documents per
+    // vehicle (see FREE_PHOTO_LIMIT / FREE_DOCUMENT_LIMIT in
+    // src/routes/documents.ts) — these track additional slots bought on top
+    // of that, £5 per +20 (see STORAGE_TOPUP_* in src/routes/billing.ts).
+    extra_photo_slots: number;
+    extra_document_slots: number;
     created_at: string;
 }
 
@@ -371,6 +387,11 @@ export async function generateUniqueMotoIdNumber(db: D1Database): Promise<string
     throw new Error("Could not generate a unique Moto ID number after 20 attempts");
 }
 
+// Registration no longer collects a shipping address or bundles a physical
+// plate — the laser-marked plaque is a separate, optional, per-vehicle
+// purchase made any time afterwards (see startPlaqueOrder below), so
+// ship_* starts out null on every vehicle and is only populated once an
+// owner actually starts a plaque order.
 export async function createVehicle(
     db: D1Database,
     userId: string,
@@ -382,28 +403,15 @@ export async function createVehicle(
           model: string;
           year: number | null;
           colour: string | null;
-          shipName: string;
-          shipAddressLine1: string;
-          shipAddressLine2: string | null;
-          shipCity: string;
-          shipPostalCode: string;
-          shipCountry: string;
     }
   ): Promise<Vehicle> {
     const id = newId();
     const motoIdNumber = await generateUniqueMotoIdNumber(db);
-    const shipName = input.shipName.trim();
-    const shipAddressLine1 = input.shipAddressLine1.trim();
-    const shipAddressLine2 = input.shipAddressLine2?.trim() || null;
-    const shipCity = input.shipCity.trim();
-    const shipPostalCode = input.shipPostalCode.toUpperCase().trim();
-    const shipCountry = input.shipCountry.trim();
     await db
           .prepare(
             `INSERT INTO vehicles
-             (id, user_id, moto_id_number, vehicle_type, registration_number, vin, make, model, year, colour,
-              ship_name, ship_address_line1, ship_address_line2, ship_city, ship_postal_code, ship_country)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             (id, user_id, moto_id_number, vehicle_type, registration_number, vin, make, model, year, colour)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .bind(
             id,
@@ -415,13 +423,7 @@ export async function createVehicle(
             input.make.trim(),
             input.model.trim(),
             input.year,
-            input.colour,
-          shipName,
-            shipAddressLine1,
-            shipAddressLine2,
-            shipCity,
-            shipPostalCode,
-            shipCountry
+            input.colour
           )
           .run();
     return {
@@ -444,14 +446,123 @@ export async function createVehicle(
         mot_reminder_sent_for: null,
         zero_docs_reminder_sent: 0,
         photo_r2_key: null,
-        ship_name: shipName,
-        ship_address_line1: shipAddressLine1,
-        ship_address_line2: shipAddressLine2,
-        ship_city: shipCity,
-        ship_postal_code: shipPostalCode,
-        ship_country: shipCountry,
+        ship_name: null,
+        ship_address_line1: null,
+        ship_address_line2: null,
+        ship_city: null,
+        ship_postal_code: null,
+        ship_country: null,
+        plaque_status: "none",
+        plaque_paid_at: null,
+        extra_photo_slots: 0,
+        extra_document_slots: 0,
         created_at: new Date().toISOString(),
     };
+}
+
+// Starts a plaque order: records the shipping address and flips plaque_status
+// to 'pending_payment' so the owner can be sent to Stripe Checkout for the
+// £15 charge — see billing.ts's /vehicles/:id/plaque flow. Only allowed from
+// 'none' (or re-entered from a stale 'pending_payment' if they abandoned
+// checkout last time), never once a plaque is already 'paid' — returns false
+// if called on a vehicle that's already paid for, so the route can treat
+// that as a no-op rather than silently overwriting a real order's address.
+export async function startPlaqueOrder(
+    db: D1Database,
+    vehicleId: string,
+    shipping: { name: string; addressLine1: string; addressLine2: string | null; city: string; postalCode: string; country: string }
+): Promise<boolean> {
+    try {
+          const res = await db
+                .prepare(
+                      `UPDATE vehicles SET plaque_status = 'pending_payment',
+                       ship_name = ?, ship_address_line1 = ?, ship_address_line2 = ?, ship_city = ?, ship_postal_code = ?, ship_country = ?
+                       WHERE id = ? AND plaque_status != 'paid'`
+                )
+                .bind(
+                      shipping.name.trim(),
+                      shipping.addressLine1.trim(),
+                      shipping.addressLine2?.trim() || null,
+                      shipping.city.trim(),
+                      shipping.postalCode.toUpperCase().trim(),
+                      shipping.country.trim(),
+                      vehicleId
+                )
+                .run();
+          return (res.meta?.changes ?? 0) > 0;
+    } catch (err) {
+          console.error("startPlaqueOrder failed (has migration 0018 been run?):", err instanceof Error ? err.message : String(err));
+          return false;
+    }
+}
+
+// Idempotent — see setListingPaid for the same pattern. Only flips
+// pending_payment -> paid, so a webhook and the /plaque/success fallback
+// calling this for the same vehicle is harmless.
+export async function setVehiclePlaquePaid(db: D1Database, vehicleId: string): Promise<boolean> {
+    try {
+          const res = await db
+                .prepare(`UPDATE vehicles SET plaque_status = 'paid', plaque_paid_at = datetime('now') WHERE id = ? AND plaque_status = 'pending_payment'`)
+                .bind(vehicleId)
+                .run();
+          return (res.meta?.changes ?? 0) > 0;
+    } catch (err) {
+          console.error("setVehiclePlaquePaid failed (has migration 0018 been run?):", err instanceof Error ? err.message : String(err));
+          return false;
+    }
+}
+
+// Records a completed storage top-up Checkout Session and grants the extra
+// slots — idempotent on sessionId via the shared `purchases` table (same
+// ON CONFLICT DO NOTHING pattern as grantCreditForCheckoutSession), so a
+// webhook and the success-page fallback both calling this for the same
+// session only ever grants the slots once. `pool` selects which cap the
+// slots apply to — see FREE_PHOTO_LIMIT / FREE_DOCUMENT_LIMIT in
+// src/routes/documents.ts.
+export async function grantStorageTopup(
+    db: D1Database,
+    sessionId: string,
+    userId: string,
+    vehicleId: string,
+    pool: "photo" | "document",
+    slots: number,
+    amountPence: number,
+    currency: string,
+    paymentIntentId: string | null = null
+): Promise<boolean> {
+    let result;
+    try {
+          result = await db
+                .prepare(
+                      `INSERT INTO purchases (id, user_id, amount_pence, currency, status, payment_intent_id)
+                       VALUES (?, ?, ?, ?, 'paid', ?)
+                       ON CONFLICT(id) DO NOTHING`
+                )
+                .bind(sessionId, userId, amountPence, currency, paymentIntentId)
+                .run();
+    } catch {
+          result = await db
+                .prepare(
+                      `INSERT INTO purchases (id, user_id, amount_pence, currency, status)
+                       VALUES (?, ?, ?, ?, 'paid')
+                       ON CONFLICT(id) DO NOTHING`
+                )
+                .bind(sessionId, userId, amountPence, currency)
+                .run();
+    }
+    const granted = (result.meta?.changes ?? 0) > 0;
+    if (!granted) return false;
+
+    const column = pool === "photo" ? "extra_photo_slots" : "extra_document_slots";
+    try {
+          await db
+                .prepare(`UPDATE vehicles SET ${column} = ${column} + ? WHERE id = ?`)
+                .bind(slots, vehicleId)
+                .run();
+    } catch (err) {
+          console.error("grantStorageTopup failed to apply slots (has migration 0018 been run?):", err instanceof Error ? err.message : String(err));
+    }
+    return true;
 }
 
 export async function setVehiclePhoto(db: D1Database, vehicleId: string, r2Key: string | null): Promise<void> {
