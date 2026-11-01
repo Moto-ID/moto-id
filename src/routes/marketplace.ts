@@ -281,7 +281,7 @@ marketplace.post("/marketplace/:id/inquire", async (c) => {
 
 // --- Seller-facing: create / pay / manage a listing ----------------------
 
-function sellForm(vehicle: Vehicle, opts: { error?: string; listing?: Listing; showHeader?: boolean } = {}): string {
+function sellForm(vehicle: Vehicle, opts: { error?: string; listing?: Listing; showHeader?: boolean; free?: boolean } = {}): string {
   const l = opts.listing;
   const header =
     opts.showHeader === false
@@ -290,13 +290,19 @@ function sellForm(vehicle: Vehicle, opts: { error?: string; listing?: Listing; s
     <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">LIST FOR SALE</div>
     <div style="font-family:var(--font-display);font-size:26px;margin-bottom:10px">${esc(vehicle.make)} ${esc(vehicle.model)}</div>
     <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:26px">${esc(vehicle.registration_number)} &middot; No.&nbsp;${esc(vehicle.moto_id_number)}</div>`;
+  const feeNotice = opts.free
+    ? `<div style="border:1px solid var(--hairline);padding:16px 18px;margin-bottom:26px;font-size:12.5px;color:var(--ink-muted);line-height:1.7">
+      Your account lists for free — no listing fee. Your vehicle publishes on the marketplace immediately, with its Moto ID provenance — service records, ownership history — shown alongside it. It stays listed until you mark it sold or remove it.
+    </div>`
+    : `<div style="border:1px solid var(--hairline);padding:16px 18px;margin-bottom:26px;font-size:12.5px;color:var(--ink-muted);line-height:1.7">
+      A one-time listing fee of <strong>${formatPrice(LISTING_FEE_PENCE)}</strong> publishes your vehicle on the public marketplace, with its Moto ID provenance — service records, ownership history — shown alongside it. It stays listed until you mark it sold or remove it.
+    </div>`;
+  const buttonLabel = opts.free ? "Publish listing — free" : `Continue to payment — ${formatPrice(LISTING_FEE_PENCE)}`;
   return `
   <div style="width:100%;max-width:480px">
     ${header}
     ${opts.error ? `<div class="error">${esc(opts.error)}</div>` : ""}
-    <div style="border:1px solid var(--hairline);padding:16px 18px;margin-bottom:26px;font-size:12.5px;color:var(--ink-muted);line-height:1.7">
-      A one-time listing fee of <strong>${formatPrice(LISTING_FEE_PENCE)}</strong> publishes your vehicle on the public marketplace, with its Moto ID provenance — service records, ownership history — shown alongside it. It stays listed until you mark it sold or remove it.
-    </div>
+    ${feeNotice}
     <form method="post" action="/vehicles/${vehicle.id}/sell">
       <div class="field">
         <label>ASKING PRICE (&pound;)</label>
@@ -310,7 +316,7 @@ function sellForm(vehicle: Vehicle, opts: { error?: string; listing?: Listing; s
         <label>LOCATION <span style="color:var(--ink-subtle);font-weight:400">(region only — not a full address)</span></label>
         <input type="text" name="location" placeholder="e.g. Surrey, UK" value="${esc(l?.location ?? "")}">
       </div>
-      <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">Continue to payment — ${formatPrice(LISTING_FEE_PENCE)}</button>
+      <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">${buttonLabel}</button>
     </form>
     <a href="/vehicles/${vehicle.id}" style="display:block;text-align:center;font-size:13px;color:var(--ink-muted)">&larr; Back to vehicle</a>
   </div>`;
@@ -328,14 +334,15 @@ marketplace.get("/vehicles/:id/sell", requireAuth, async (c) => {
   let body: string;
 
   if (listing?.status === "pending_payment") {
+    const free = !!user.unlimited_vehicles;
     body = `
     <div style="width:100%;max-width:440px">
       <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">LIST FOR SALE</div>
-      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:22px">Complete payment to publish your listing.</div>
-      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">Your listing details are saved — pay the ${formatPrice(LISTING_FEE_PENCE)} listing fee to make it live on the marketplace.</div>
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:22px">${free ? "Publish your listing." : "Complete payment to publish your listing."}</div>
+      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">${free ? "Your account lists for free — no listing fee. Publish to make it live on the marketplace." : `Your listing details are saved — pay the ${formatPrice(LISTING_FEE_PENCE)} listing fee to make it live on the marketplace.`}</div>
       ${error ? `<div class="error">${esc(error)}</div>` : ""}
       <form method="post" action="/vehicles/${vehicle.id}/sell/pay">
-        <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">Continue to payment — ${formatPrice(LISTING_FEE_PENCE)}</button>
+        <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">${free ? "Publish listing — free" : `Continue to payment — ${formatPrice(LISTING_FEE_PENCE)}`}</button>
       </form>
       <form method="post" action="/vehicles/${vehicle.id}/sell/remove">
         <button type="submit" style="display:block;width:100%;text-align:center;border:none;background:none;padding:0;font-size:12.5px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Cancel this listing</button>
@@ -387,10 +394,10 @@ marketplace.get("/vehicles/:id/sell", requireAuth, async (c) => {
       <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin-bottom:14px">LIST FOR SALE</div>
       <div style="font-family:var(--font-display);font-size:22px;margin-bottom:16px">Marked as sold.</div>
       <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:28px">This vehicle's last listing is marked sold and no longer public. You can list it again below.</div>
-      ${sellForm(vehicle, { error, showHeader: false })}
+      ${sellForm(vehicle, { error, showHeader: false, free: !!user.unlimited_vehicles })}
     </div>`;
   } else {
-    body = sellForm(vehicle, { error });
+    body = sellForm(vehicle, { error, free: !!user.unlimited_vehicles });
   }
 
   return c.html(appShell(`Sell — ${vehicle.make} ${vehicle.model} — Moto ID`, `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Sell`, body, user));
@@ -420,12 +427,22 @@ marketplace.post("/vehicles/:id/sell", requireAuth, async (c) => {
   const body = await c.req.parseBody();
   const input = parseListingInput(body);
   if (!input) {
-    return c.html(appShell(`Sell — ${vehicle.make} ${vehicle.model} — Moto ID`, `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Sell`, sellForm(vehicle, { error: "Please enter a valid price and description." }), user), 400);
+    return c.html(appShell(`Sell — ${vehicle.make} ${vehicle.model} — Moto ID`, `<a href="/dashboard">My Collection</a> / <a href="/vehicles/${vehicle.id}">${esc(vehicle.registration_number)}</a> / Sell`, sellForm(vehicle, { error: "Please enter a valid price and description.", free: !!user.unlimited_vehicles }), user), 400);
   }
 
   const listing = await createListing(c.env.DB, vehicle.id, user.id, input);
   if (!listing) {
     return c.redirect(`/vehicles/${vehicle.id}/sell?error=${encodeURIComponent("Listing isn't available yet — please try again shortly.")}`);
+  }
+
+  // Accounts with the unlimited_vehicles flag (currently just Adam's own
+  // account — see migrations/0006_unlimited_vehicles.sql) also skip the
+  // marketplace listing fee entirely: publish straight to "active" with no
+  // Stripe Checkout round-trip, the same bypass pattern already used for
+  // vehicle-registration credits in src/routes/billing.ts and vehicles.ts.
+  if (user.unlimited_vehicles) {
+    await setListingPaid(c.env.DB, listing.id, null);
+    return c.redirect(`/vehicles/${vehicle.id}/sell/success`);
   }
 
   const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
@@ -454,6 +471,11 @@ marketplace.post("/vehicles/:id/sell/pay", requireAuth, async (c) => {
 
   const listing = await getLatestListingForVehicle(c.env.DB, vehicle.id);
   if (!listing || listing.status !== "pending_payment") return c.redirect(`/vehicles/${vehicle.id}/sell`);
+
+  if (user.unlimited_vehicles) {
+    await setListingPaid(c.env.DB, listing.id, null);
+    return c.redirect(`/vehicles/${vehicle.id}/sell/success`);
+  }
 
   const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
   try {
