@@ -185,12 +185,19 @@ marketplace.get("/marketplace/:id", async (c) => {
   // rather than being shown just because the listing itself is public: a
   // seller who's kept either private on their own Moto ID profile sees that
   // choice carried through here unchanged. Fetched once and shared between
-  // both sections, same as verify.ts, and only when at least one is on.
+  // both sections, same as verify.ts, and only when at least one is on. Unlike
+  // verify.ts (which lists the full history), a listing only ever shows the
+  // single most recent test — getMotTestsSafely already orders newest first,
+  // so that's just motTests[0] — a prospective buyer cares whether it's
+  // currently roadworthy, not a multi-year certificate archive; the mileage
+  // chart below still plots the full history motTests carries, unaffected by
+  // this.
   const motTests = vehicle.mot_history_public || vehicle.mileage_public ? await getMotTestsSafely(c.env.DB, vehicle.id) : [];
+  const latestMotTest = motTests[0] ?? null;
   let motDefectsByTest = new Map<string, MotDefectRow[]>();
-  if (vehicle.mot_history_public && motTests.length) {
+  if (vehicle.mot_history_public && latestMotTest) {
     try {
-      motDefectsByTest = await getDefectsForTests(c.env.DB, motTests.map((t) => t.id));
+      motDefectsByTest = await getDefectsForTests(c.env.DB, [latestMotTest.id]);
     } catch (err) {
       console.error("getDefectsForTests failed on marketplace listing (has migration 0010 been run?):", err instanceof Error ? err.message : String(err));
     }
@@ -200,13 +207,13 @@ marketplace.get("/marketplace/:id", async (c) => {
     ? `
           <div style="margin-top:28px">
             <div style="font-weight:600;font-size:13px;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <span>MOT history</span>
+              <span>Most recent MOT</span>
               ${vehicle.mot_due_date ? `<span style="font-size:11px;color:var(--ink-subtle);font-weight:400">MOT due ${formatMotDate(vehicle.mot_due_date)}</span>` : ""}
             </div>
             <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
               ${
-                motTests.length
-                  ? motTests.map((t) => motTestCard(t, motDefectsByTest.get(t.id) ?? [])).join("")
+                latestMotTest
+                  ? motTestCard(latestMotTest, motDefectsByTest.get(latestMotTest.id) ?? [])
                   : `<div style="font-size:12.5px;color:var(--ink-subtle)">No MOT history on file yet.</div>`
               }
             </div>
