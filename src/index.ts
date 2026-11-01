@@ -7,6 +7,7 @@ import { vehicles } from "./routes/vehicles";
 import { documents } from "./routes/documents";
 import { verify } from "./routes/verify";
 import { billing } from "./routes/billing";
+import { marketplace } from "./routes/marketplace";
 import { sendDueMotReminders, purgeExpiredDeletedDocuments, sendZeroDocsReminders, runCronJob } from "./lib/reminders";
 
 const app = new Hono<Env>();
@@ -19,6 +20,7 @@ app.route("/", vehicles);
 app.route("/", documents);
 app.route("/", verify);
 app.route("/", billing);
+app.route("/", marketplace);
 
 type SettingsTab = "profile" | "vehicles" | "notifications";
 
