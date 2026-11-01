@@ -33,9 +33,18 @@ import {
     type MotTestRow,
     type MotDefectRow,
 } from "../lib/db";
-import { sendOrderNotificationEmail, sendOwnershipTransferEmail } from "../lib/email";
+import { sendOwnershipTransferEmail } from "../lib/email";
 import { lookupVehicleByRegistration, DvsaNotConfiguredError, DvsaNotFoundError, type DvsaVehicle } from "../lib/dvsa";
 import { getMotTestsSafely, formatMotDate, formatOdometer, motTestCard, countMileageReadings, mileageChart } from "../lib/mot";
+import { FREE_VEHICLE_LIMIT } from "./billing";
+
+// True once an account has used up its one free vehicle slot — every
+// vehicle after that costs EXTRA_VEHICLE_PRICE_PENCE (see billing.ts),
+// whether paid for with a standing credit or about to be bought via /buy.
+// Adam's own account (unlimited_vehicles) always skips this.
+function needsPaidVehicleSlot(user: { unlimited_vehicles: boolean }, existingVehicleCount: number): boolean {
+  return !user.unlimited_vehicles && existingVehicleCount >= FREE_VEHICLE_LIMIT;
+}
 
 // Shared by both the registration form's live auto-fill and the
 // post-registration/manual-refresh sync below — one DVSA lookup, used two
@@ -221,35 +230,8 @@ function registerVehicleForm(opts: { error?: string; values?: Record<string, str
                                                                                       </div>
                                                                                     </div>
 
-  <div style="font-size:10px;letter-spacing:0.16em;color:var(--ink-subtle);margin:6px 0 18px">SHIP THE PLATE TO</div>
-  <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:30px">
-    <div class="field" style="margin-bottom:0">
-      <label>FULL NAME</label>
-      <input type="text" name="shipName" value="${esc(v.shipName ?? "")}" required>
-    </div>
-    <div class="field" style="margin-bottom:0">
-      <label>ADDRESS LINE 1</label>
-      <input type="text" name="shipAddressLine1" value="${esc(v.shipAddressLine1 ?? "")}" required>
-    </div>
-    <div class="field" style="margin-bottom:0">
-      <label>ADDRESS LINE 2 (OPTIONAL)</label>
-      <input type="text" name="shipAddressLine2" value="${esc(v.shipAddressLine2 ?? "")}">
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-      <div class="field" style="margin-bottom:0">
-        <label>TOWN / CITY</label>
-        <input type="text" name="shipCity" value="${esc(v.shipCity ?? "")}" required>
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label>POSTCODE</label>
-        <input type="text" name="shipPostalCode" class="mono" value="${esc(v.shipPostalCode ?? "")}" required style="text-transform:uppercase">
-      </div>
-    </div>
-    <div style="font-size:11.5px;color:var(--ink-subtle)">We currently post within the United Kingdom only.</div>
-  </div>
-
                                                                               <div style="border:1px solid var(--hairline);padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:30px">
-                                                                              <div style="font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle)">Your Moto ID number is assigned the moment you submit this form, and held for the life of the vehicle.</div>
+                                                                              <div style="font-size:10px;letter-spacing:0.08em;color:var(--ink-subtle)">Your Moto ID number is assigned the moment you submit this form, and your vehicle gets a public verification page straight away. The laser-marked plaque is a separate, optional purchase you can order any time afterwards.</div>
                                                                                       </div>
 
                                                                                       <button type="submit" class="btn btn-solid" style="width:100%;border:none;margin-bottom:16px">Create my Moto ID</button>
@@ -286,15 +268,18 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
   }
 });
 
-                                                                                        vehicles.get("/register-vehicle", requireAuth, (c) => {
+                                                                                        vehicles.get("/register-vehicle", requireAuth, async (c) => {
                                                                                           const user = c.get("user")!;
-                                                                                          if (!user.unlimited_vehicles && user.vehicle_credits <= 0) return c.redirect("/buy");
-                                                                                          return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({ values: { shipName: user.name } })));
+                                                                                          const existingVehicles = await getVehiclesByUser(c.env.DB, user.id);
+                                                                                          if (needsPaidVehicleSlot(user, existingVehicles.length) && user.vehicle_credits <= 0) return c.redirect("/buy");
+                                                                                          return c.html(authShell("Register your vehicle — Moto ID", registerVehicleForm({})));
                                                                                         });
 
                                                                                         vehicles.post("/register-vehicle", requireAuth, async (c) => {
                                                                                           const user = c.get("user")!;
-                                                                                          if (!user.unlimited_vehicles && user.vehicle_credits <= 0) return c.redirect("/buy");
+                                                                                          const existingVehicles = await getVehiclesByUser(c.env.DB, user.id);
+                                                                                          const needsPaidSlot = needsPaidVehicleSlot(user, existingVehicles.length);
+                                                                                          if (needsPaidSlot && user.vehicle_credits <= 0) return c.redirect("/buy");
                                                                                           const body = await c.req.parseBody();
                                                                                             const vehicleType = body.vehicleType === "motorcycle" ? "motorcycle" : "car";
                                                                                           const registrationNumber = String(body.registrationNumber ?? "").trim();
@@ -305,16 +290,6 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
                                                                                           const colour = String(body.colour ?? "").trim() || null;
                                                                                           const year = yearRaw ? parseInt(yearRaw, 10) : null;
 
-                                                                                          // Shipping address for the physical plate — the "order form" fields,
-                                                                                          // collected right alongside the vehicle details so one submit captures
-                                                                                          // everything needed to both mint the Moto ID and fulfil the order.
-                                                                                          const shipName = String(body.shipName ?? "").trim();
-                                                                                          const shipAddressLine1 = String(body.shipAddressLine1 ?? "").trim();
-                                                                                          const shipAddressLine2 = String(body.shipAddressLine2 ?? "").trim() || null;
-                                                                                          const shipCity = String(body.shipCity ?? "").trim();
-                                                                                          const shipPostalCode = String(body.shipPostalCode ?? "").trim();
-                                                                                          const shipCountry = "United Kingdom"; // UK-only for now — see the note on the form itself.
-
                                                                                           const formValues = {
                                                                                             vehicleType,
                                                                                             registrationNumber,
@@ -323,11 +298,6 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
                                                                                             model,
                                                                                             year: yearRaw,
                                                                                             colour: colour ?? "",
-                                                                                            shipName,
-                                                                                            shipAddressLine1,
-                                                                                            shipAddressLine2: shipAddressLine2 ?? "",
-                                                                                            shipCity,
-                                                                                            shipPostalCode,
                                                                                           };
 
                                                                                           if (!registrationNumber || !vin || !make || !model) {
@@ -343,20 +313,7 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
                                                                                             );
                                                                                           }
 
-                                                                                          if (!shipName || !shipAddressLine1 || !shipCity || !shipPostalCode) {
-                                                                                            return c.html(
-                                                                                              authShell(
-                                                                                                        "Register your vehicle — Moto ID",
-                                                                                                registerVehicleForm({
-                                                                                                            error: "Please fill in the shipping address for your plate.",
-                                                                                                  values: formValues,
-                                                                                                })
-                                                                                              ),
-                                                                                                    400
-                                                                                            );
-                                                                                          }
-
-                                                                                            if (!user.unlimited_vehicles) {
+                                                                                            if (needsPaidSlot) {
                                                                                               const creditConsumed = await consumeUserCredit(c.env.DB, user.id);
                                                                                               if (!creditConsumed) {
                                                                                                 // Credit was used up between the form loading and this submit (e.g. two
@@ -373,12 +330,6 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
                                                                                                   model,
                                                                                                   year,
                                                                                                   colour,
-                                                                                                  shipName,
-                                                                                                  shipAddressLine1,
-                                                                                                  shipAddressLine2,
-                                                                                                  shipCity,
-                                                                                                  shipPostalCode,
-                                                                                                  shipCountry,
                                                                                             });
 
                                                                                             // Pull in this vehicle's MOT history from the DVSA right away, so the
@@ -396,56 +347,12 @@ vehicles.get("/register-vehicle/dvsa-lookup", requireAuth, async (c) => {
                                                                                               }
                                                                                             }
 
-                                                                                            // Automated order notification — every registration is a physical plate
-                                                                                            // order, so Adam needs the customer's shipping address, the vehicle
-                                                                                            // details, and the QR-code URL for the plate itself. A failure here must
-                                                                                            // never block the customer's own flow (e.g. Resend not configured yet),
-                                                                                            // so it's caught and logged rather than surfaced to them.
-                                                                                            const origin = c.env.PUBLIC_ORIGIN || new URL(c.req.url).origin;
-                                                                                            try {
-                                                                                              await sendOrderNotificationEmail(c.env, {
-                                                                                                customerName: user.name,
-                                                                                                customerEmail: user.email,
-                                                                                                vehicle: {
-                                                                                                  vehicleType,
-                                                                                                  make: vehicle.make,
-                                                                                                  model: vehicle.model,
-                                                                                                  year: vehicle.year,
-                                                                                                  colour: vehicle.colour,
-                                                                                                  registrationNumber: vehicle.registration_number,
-                                                                                                  vin: vehicle.vin,
-                                                                                                  motoIdNumber: vehicle.moto_id_number,
-                                                                                                },
-                                                                                                shipping: {
-                                                                                                  name: shipName,
-                                                                                                  addressLine1: shipAddressLine1,
-                                                                                                  addressLine2: shipAddressLine2,
-                                                                                                  city: shipCity,
-                                                                                                  postalCode: shipPostalCode,
-                                                                                                  country: shipCountry,
-                                                                                                },
-                                                                                                verifyUrl: `${origin}/verify/${vehicle.moto_id_number}`,
-                                                                                                paidOrder: !user.unlimited_vehicles,
-                                                                                              });
-                                                                                            } catch (err) {
-                                                                                              console.error("Failed to send order notification email:", err instanceof Error ? err.message : String(err));
-                                                                                            }
-
                                                                                           return c.redirect(`/vehicles/${vehicle.id}`);
                                                                                         });
 
 // The free "My Collection" empty state — shown to any signed-in user with no
 // vehicles yet and no unused Moto ID credit. Signing up is always free; this
 // is the wall before registering an actual vehicle, which needs a credit.
-function myCollectionEmptyState(): string {
-  return `
-    <div style="max-width:480px;margin:70px auto;text-align:center">
-      <div style="font-family:var(--font-display);font-size:26px;margin-bottom:14px">My Collection is empty.</div>
-      <div style="font-size:13.5px;color:var(--ink-muted);line-height:1.7;margin-bottom:32px">Your account is free to keep, for as long as you like. To register a vehicle and get an actual Moto ID, you'll need a Moto ID Kit &mdash; a single engraved plate, which comes with the digital record and public verification page you'll build on here.</div>
-      <a href="/buy" class="btn btn-solid" style="display:inline-block;border:none;padding:15px 34px">Get a Moto ID &mdash; from &pound;29</a>
-    </div>`;
-}
-
 // A single vehicle tile for the "My Collection" grid: thumbnail (the same
 // cover photo set via photoBox on the vehicle detail page, read-only here)
 // plus make/model, registration and Moto ID number. The whole tile links to
@@ -476,8 +383,9 @@ vehicles.get("/dashboard", requireAuth, async (c) => {
   const list = await getVehiclesByUser(c.env.DB, user.id);
 
   if (list.length === 0) {
-    if (user.unlimited_vehicles || user.vehicle_credits > 0) return c.redirect("/register-vehicle");
-    return c.html(appShell("My Collection — Moto ID", "My Collection", myCollectionEmptyState(), user));
+    // The first vehicle on any account is always free (see FREE_VEHICLE_LIMIT
+    // in billing.ts) — no credit or payment needed, so straight to the form.
+    return c.redirect("/register-vehicle");
   }
 
   const body = `
@@ -650,6 +558,13 @@ ${photoBox(vehicle, icon, !!c.env.DOCS)}                                        
                                                                                                                   </div>
                                                                                                             
                                                                                                             <a href="/verify/${esc(vehicle.moto_id_number)}" target="_blank" class="btn btn-outline" style="text-align:center">View public record</a>
+                                                                                                                    ${
+                                                                                                                      vehicle.plaque_status === "paid"
+                                                                                                                        ? `<div style="border:1px solid var(--hairline);padding:12px 16px;font-size:12px;color:var(--ink-muted);text-align:center">Laser-marked plaque ordered</div>`
+                                                                                                                        : vehicle.plaque_status === "pending_payment"
+                                                                                                                        ? `<a href="/vehicles/${vehicle.id}/plaque" class="btn btn-outline" style="text-align:center">Finish plaque order</a>`
+                                                                                                                        : `<a href="/vehicles/${vehicle.id}/plaque" class="btn btn-outline" style="text-align:center">Order laser-marked plaque &mdash; &pound;15</a>`
+                                                                                                                    }
                                                                                                                     <a href="/settings" class="btn btn-outline" style="text-align:center">Manage vehicle</a>
                                                                                                                     ${pendingTransfer
                                                                                                                       ? `<div style="border:1px solid var(--hairline);padding:14px 16px;font-size:12px;color:var(--ink-muted);line-height:1.6">Transfer pending to <strong style="color:var(--ink)">${esc(pendingTransfer.to_email)}</strong><form method="post" action="/vehicles/${vehicle.id}/transfer/cancel" style="margin-top:8px"><button type="submit" style="border:none;background:none;padding:0;font-size:12px;color:var(--ink-subtle);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Cancel transfer</button></form></div>`

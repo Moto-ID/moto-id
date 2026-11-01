@@ -12,11 +12,34 @@ import {
   softDeleteDocument,
   restoreDocument,
   listDeletedDocuments,
+  countDocumentsByFolder,
   DOCUMENT_UNDO_WINDOW_DAYS,
   type Folder,
   type Document,
+  type Vehicle,
 } from "../lib/db";
 import { sniffFileType, serveHeaders, MAX_UPLOAD_BYTES } from "../lib/files";
+import { STORAGE_TOPUP_SLOTS, STORAGE_TOPUP_PRICE_PENCE } from "./billing";
+
+// Free per-vehicle storage allowance — see migrations/0018_pricing_restructure.sql
+// and billing.ts's storage top-up purchase. Photos are their own pool;
+// service documents and invoices SHARE one pool (not 10 of each).
+export const FREE_PHOTO_LIMIT = 10;
+export const FREE_DOCUMENT_LIMIT = 10;
+
+// Which cap/pool a folder counts against — "photo" is its own pool,
+// "service" and "invoice" share the combined "document" pool.
+function poolForFolder(folder: Folder): "photo" | "document" {
+  return folder === "photo" ? "photo" : "document";
+}
+
+async function poolUsage(db: D1Database, vehicle: Vehicle, pool: "photo" | "document"): Promise<{ used: number; limit: number }> {
+  const counts = await countDocumentsByFolder(db, vehicle.id);
+  if (pool === "photo") {
+    return { used: counts.photo, limit: FREE_PHOTO_LIMIT + (vehicle.extra_photo_slots ?? 0) };
+  }
+  return { used: counts.service + counts.invoice, limit: FREE_DOCUMENT_LIMIT + (vehicle.extra_document_slots ?? 0) };
+}
 
 export const documents = new Hono<Env>();
 
@@ -108,6 +131,11 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
     const deletedDocs = (await listDeletedDocuments(c.env.DB, vehicle.id)).filter((d) => d.folder === folder);
     const r2Enabled = !!c.env.DOCS;
 
+    const pool = poolForFolder(folder);
+    const usage = await poolUsage(c.env.DB, vehicle, pool);
+    const atCap = usage.used >= usage.limit;
+    const poolLabel = pool === "photo" ? "photos" : "service documents and invoices (shared)";
+
     const listing =
           folder === "photo"
                 ? docs.length
@@ -163,8 +191,24 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
       </div>`
                       : `<div style="padding:28px 20px;font-size:13px;color:var(--ink-subtle);border:1px solid var(--hairline)">No documents yet — upload the first one above.</div>`;
 
-    const uploadBlock = r2Enabled
+    const buyMoreForm = `
+          <form method="post" action="/vehicles/${vehicle.id}/storage/buy" style="margin-bottom:32px">
+            <input type="hidden" name="pool" value="${pool}">
+            <input type="hidden" name="from" value="${folder}">
+            <div style="border:1px solid var(--hairline-strong);padding:22px 26px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+              <div style="font-size:13px;color:var(--ink-muted)">You've used all ${usage.limit} free ${poolLabel} slots for this vehicle.</div>
+              <button type="submit" class="btn btn-solid" style="border:none;white-space:nowrap">+${STORAGE_TOPUP_SLOTS} slots &mdash; &pound;${(STORAGE_TOPUP_PRICE_PENCE / 100).toFixed(0)}</button>
+            </div>
+          </form>`;
+
+    const uploadBlock = !r2Enabled
           ? `
+          <div style="border:1px dashed var(--hairline);padding:22px 26px;margin-bottom:32px;color:var(--ink-subtle);font-size:13px">
+            File uploads are being finished — storage isn't switched on for this account yet. Your folders and history are ready as soon as it is.
+          </div>`
+          : atCap
+          ? buyMoreForm
+          : `
           <form method="post" action="/vehicles/${vehicle.id}/folder/${folder}/upload" enctype="multipart/form-data" style="margin-bottom:32px;display:flex;flex-direction:column;gap:12px">
             <label style="border:1px dashed var(--hairline-strong);padding:26px;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--ink-subtle);cursor:pointer">
               ${UPLOAD_ICON}
@@ -175,18 +219,14 @@ documents.get("/vehicles/:id/folder/:folder", requireAuth, async (c) => {
               <input type="checkbox" name="isPublic">
               Make this visible on the public verify page (anyone who scans the plate's QR code will see it)
             </label>
-          </form>`
-          : `
-          <div style="border:1px dashed var(--hairline);padding:22px 26px;margin-bottom:32px;color:var(--ink-subtle);font-size:13px">
-            File uploads are being finished — storage isn't switched on for this account yet. Your folders and history are ready as soon as it is.
-          </div>`;
+          </form>`;
 
     const body = `
     <div style="max-width:1100px">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;gap:16px;flex-wrap:wrap">
         <div style="font-family:var(--font-display);font-size:26px">${FOLDER_LABEL[folder]}</div>
       </div>
-      <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${docs.length} file${docs.length === 1 ? "" : "s"}</div>
+      <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:28px">${docs.length} file${docs.length === 1 ? "" : "s"} &middot; ${usage.used} of ${usage.limit} ${poolLabel} slots used</div>
 
       ${uploadBlock}
 
@@ -216,11 +256,22 @@ documents.post("/vehicles/:id/folder/:folder/upload", requireAuth, async (c) => 
     // not an array) — handle both shapes.
     const body = await c.req.parseBody({ all: true });
     const rawFiles = body.file;
-    const files = (Array.isArray(rawFiles) ? rawFiles : [rawFiles]).filter((f): f is File => f instanceof File && f.size > 0);
+    let files = (Array.isArray(rawFiles) ? rawFiles : [rawFiles]).filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length === 0) {
           return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}`);
     }
     const isPublic = body.isPublic === "on";
+
+    // Never silently upload past the vehicle's free-or-paid slot cap for
+    // this pool — truncate the batch to however many slots are actually
+    // left (which may be zero) rather than erroring the whole upload.
+    const pool = poolForFolder(folder);
+    const usage = await poolUsage(c.env.DB, vehicle, pool);
+    const remaining = Math.max(0, usage.limit - usage.used);
+    files = files.slice(0, remaining);
+    if (files.length === 0) {
+          return c.redirect(`/vehicles/${vehicle.id}/folder/${folder}?error=${encodeURIComponent("You've used all your free storage slots for this pool. Buy more to upload further files.")}`);
+    }
 
     for (const file of files) {
           // Oversized files are silently skipped rather than erroring the whole

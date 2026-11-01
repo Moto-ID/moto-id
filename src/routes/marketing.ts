@@ -57,10 +57,11 @@ marketing.get("/", (c) => {
     return c.redirect("/dashboard");
   }
 
-  // Signed-in visitors go straight to checkout; signed-out visitors sign up
-  // first (a free account) and land on "My Collection", where the same
-  // purchase prompt is waiting for them.
-  const ctaHref = c.get("user") ? "/buy" : "/signup";
+  // Signed-in visitors go straight to the (free, for their first vehicle)
+  // registration flow; signed-out visitors sign up first (a free account)
+  // and land on "My Collection", where registering their first vehicle is
+  // the very next step.
+  const ctaHref = c.get("user") ? "/register-vehicle" : "/signup";
   const body = `
     <style>
       .m-btn-solid-inv:hover{background:oklch(88% 0 0)!important}
@@ -79,7 +80,7 @@ marketing.get("/", (c) => {
         <div>
           <div style="font-size:15px;color:oklch(74% 0 0);max-width:400px;margin-bottom:30px">One number. One history. Held to the same standard as the vehicle it belongs to &mdash; permanently engraved, publicly verifiable, and yours to prove, at any time.</div>
           <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap">
-            <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Request a plate</a>
+            <a href="${ctaHref}" class="m-btn-solid-inv" style="background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer;display:inline-block">Create your Moto ID &mdash; free</a>
             <a href="/#the-mark" style="font-size:13px;letter-spacing:0.02em;color:oklch(97% 0 0);cursor:pointer;border-bottom:1px solid oklch(74% 0 0);padding-bottom:2px">See the mark &rarr;</a>
           </div>
         </div>
@@ -107,7 +108,7 @@ marketing.get("/", (c) => {
 
         <p>Moto ID doesn't solve that by asking anyone to trust us instead. The record itself is built by the owner, over time, and stands or falls on its own consistency &mdash; a registration date, a pattern of activity, photographs and documents added as the work actually happened. That's a more honest kind of proof than a single certificate issued once and never checked again.</p>
 
-        <p>It's a one-time purchase, not a subscription. You pay for the plate; the account, the document folders and the public verification page are free for as long as you own the vehicle, and the record transfers with it, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
+        <p>The account is free, and so is your first vehicle's digital record and public verification page &mdash; no subscription, ever. The laser-marked plate itself is an optional, one-time purchase you can add whenever you're ready. The record transfers with the vehicle, free of charge, when it's sold. <a href="/#the-mark">See how the mark works &rarr;</a></p>
       </div>
     </div>
 
@@ -196,7 +197,7 @@ marketing.get("/", (c) => {
     <!-- CTA: full-bleed dark -->
     <div style="background:oklch(11% 0 0);padding:110px 56px;text-align:center">
       <div style="font-family:var(--font-display);color:oklch(97% 0 0);font-style:italic;font-size:min(34px,7vw);max-width:520px;margin:0 auto 34px">Give your build a provenance worthy of it.</div>
-      <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Request a plate &mdash; from &pound;29</a>
+      <a href="${ctaHref}" class="m-btn-solid-inv" style="display:inline-block;background:oklch(97% 0 0);color:oklch(10% 0 0);font-size:12.5px;letter-spacing:0.05em;padding:16px 30px;cursor:pointer">Create your Moto ID &mdash; free</a>
     </div>
 
     <style>
@@ -207,41 +208,40 @@ marketing.get("/", (c) => {
 });
 
 marketing.get("/pricing", (c) => {
-  const ctaHref = c.get("user") ? "/buy" : "/signup";
+  const ctaHref = c.get("user") ? "/register-vehicle" : "/signup";
   const body = `
     <!-- HEADER -->
     <div style="padding:80px 56px 56px;text-align:center">
       <div style="font-size:10.5px;letter-spacing:0.2em;color:var(--ink-subtle);margin-bottom:22px">PRICING</div>
-      <div style="font-family:var(--font-display);font-size:min(38px,8vw);line-height:1.3;max-width:620px;margin:0 auto">One plate. One record.<br>No subscription to keep it real.</div>
+      <div style="font-family:var(--font-display);font-size:min(38px,8vw);line-height:1.3;max-width:620px;margin:0 auto">Free to start.<br>Pay only for what you add.</div>
     </div>
 
     <!-- PLANS -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:920px;margin:0 auto 90px;border:1px solid var(--hairline)" class="pricing-grid">
 
       <div style="padding:48px 44px;border-right:1px solid var(--hairline)">
-        <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:16px">THE MOTO ID KIT &mdash; FOUNDING PRICE</div>
-        <div style="font-family:var(--font-display);font-size:34px;margin-bottom:6px">&pound;29</div>
-        <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:32px">one-time &middot; per vehicle &middot; first 250 kits (usually &pound;45)</div>
+        <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:16px">FREE ACCOUNT</div>
+        <div style="font-family:var(--font-display);font-size:34px;margin-bottom:6px">&pound;0</div>
+        <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:32px">your account, and your first vehicle, free for as long as you keep it</div>
         <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:36px">
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">One engraved plate, made to order</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">QR code linking to your public record</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Unlimited document storage</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Public verification page</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Record kept for the life of the vehicle</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">One vehicle profile, free</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Public verification page from the moment you register</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">10 free photo slots &amp; 10 free document slots</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">MOT history &amp; mileage tracking</div>
         </div>
-        <a href="${ctaHref}" style="display:block;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Request a plate</a>
+        <a href="${ctaHref}" style="display:block;background:var(--ink);color:var(--bg);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Create a free account</a>
       </div>
 
       <div style="padding:48px 44px">
-        <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:16px">ADDITIONAL VEHICLES</div>
-        <div style="font-family:var(--font-display);font-size:34px;margin-bottom:6px">&pound;35</div>
-        <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:32px">per additional vehicle in your collection</div>
+        <div style="font-size:10px;letter-spacing:0.1em;color:var(--ink-subtle);margin-bottom:16px">LASER-MARKED PLAQUE &mdash; OPTIONAL</div>
+        <div style="font-family:var(--font-display);font-size:34px;margin-bottom:6px">&pound;15</div>
+        <div style="font-size:12.5px;color:var(--ink-subtle);margin-bottom:32px">per vehicle &middot; buy any time, no rush</div>
         <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:36px">
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Everything in the Moto ID Kit</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Managed under one account</div>
-          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Same standard of engraving &amp; marking</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">One engraved plate, made to order</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Tamper-evident QR stickers linking to your public record</div>
+          <div style="border-top:1px solid var(--hairline);padding-top:12px;font-size:13.5px;color:var(--ink-muted)">Posted to you once ordered</div>
         </div>
-        <a href="${ctaHref}" style="display:block;border:1px solid var(--ink);color:var(--ink);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Add a vehicle</a>
+        <a href="${ctaHref}" style="display:block;border:1px solid var(--ink);color:var(--ink);font-size:12.5px;letter-spacing:0.04em;padding:15px;text-align:center;cursor:pointer">Register a vehicle first</a>
       </div>
     </div>
 
@@ -249,17 +249,31 @@ marketing.get("/pricing", (c) => {
     <div style="max-width:920px;margin:0 auto 100px;border-top:1px solid var(--hairline)">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid var(--hairline);gap:16px;flex-wrap:wrap">
         <div>
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">Additional vehicle</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">Every vehicle on your account after the first free one.</div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;5</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid var(--hairline);gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">Extra storage</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">+20 more slots in either pool (photos, or service documents &amp; invoices combined) once you've used your free ones.</div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;5</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid var(--hairline);gap:16px;flex-wrap:wrap">
+        <div>
           <div style="font-weight:600;font-size:14px;margin-bottom:4px">Replacement plate</div>
-          <div style="font-size:12.5px;color:var(--ink-subtle)">Lost or damaged plate, re-issued against your existing Moto ID number.</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">Lost or damaged plaque, re-issued against your existing Moto ID number.</div>
         </div>
         <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;18</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid var(--hairline);gap:16px;flex-wrap:wrap">
         <div>
           <div style="font-weight:600;font-size:14px;margin-bottom:4px">Trade partner (5+ units)</div>
-          <div style="font-size:12.5px;color:var(--ink-subtle)">For restorers, dealers and clubs fitting Moto ID kits across multiple vehicles.</div>
+          <div style="font-size:12.5px;color:var(--ink-subtle)">For restorers, dealers and clubs fitting Moto ID plaques across multiple vehicles.</div>
         </div>
-        <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;27 / kit</div>
+        <div style="font-family:var(--font-mono);font-size:14px;white-space:nowrap">&pound;27 / plaque</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 0;gap:16px;flex-wrap:wrap">
         <div>
@@ -345,9 +359,9 @@ marketing.get("/terms", (c) => {
     <div style="max-width:680px;margin:0 auto 110px;padding:0 56px;font-size:14px;color:var(--ink-muted);line-height:1.8">
       <p style="color:var(--ink-subtle);font-size:12.5px;margin-bottom:20px">Last updated 15 September 2026.</p>
 
-      <p>These terms cover the Moto ID kit (a single engraved plate) and the free account and public verification page that go with it. By buying a kit or creating an account, you agree to them.</p>
+      <p>These terms cover the free Moto ID account, the optional laser-marked plaque, and the public verification page that goes with each vehicle. By creating an account, registering a vehicle, or buying a plaque, you agree to them.</p>
 
-      ${s("What Moto ID is", "The kit is a one-time purchase, not a subscription &mdash; current prices are on the <a href=\"/pricing\">Pricing</a> page. The account, its document folders and the public verification page are free for as long as you own the vehicle.")}
+      ${s("What Moto ID is", "Creating an account and registering your first vehicle is free, with no subscription. Each vehicle gets a free allowance of document and photo storage and a public verification page from the moment it's registered. Additional vehicles, extra storage, and the optional laser-marked plaque are one-time purchases &mdash; current prices are on the <a href=\"/pricing\">Pricing</a> page.")}
 
       ${s("What \"verified\" means", "Moto ID verifies that a specific physical mark is genuine and hasn't been reissued to a different vehicle, and that the documents in a vehicle's record were uploaded by the account holder on the dates shown. Moto ID cannot verify that an uploaded document is itself genuine, and does not guarantee a vehicle's condition, mileage or history beyond what it can actually check. Anyone relying on a Moto ID record when buying or insuring a vehicle should treat it as one part of their own due diligence, not a substitute for it.")}
 
