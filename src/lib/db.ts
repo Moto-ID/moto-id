@@ -1192,3 +1192,183 @@ export async function getVehiclesDueZeroDocsReminder(db: D1Database): Promise<Ze
 export async function markZeroDocsReminderSent(db: D1Database, vehicleId: string): Promise<void> {
     await db.prepare("UPDATE vehicles SET zero_docs_reminder_sent = 1 WHERE id = ?").bind(vehicleId).run();
 }
+
+// --- Marketplace listings ------------------------------------------------
+//
+// Lets an owner list their vehicle for sale, surfacing its Moto ID
+// provenance (service record count, ownership history) as the
+// differentiator — see business-plan.md Section 8. See
+// migrations/0017_marketplace_listings.sql for the schema and
+// src/routes/marketplace.ts for the routes. Every function here is wrapped
+// in try/catch, same discipline as the rest of this file, so this code
+// being live ahead of migration 0017 leaves the feature merely inert
+// rather than 500ing pages that already work.
+
+export type ListingStatus = "pending_payment" | "active" | "sold" | "removed";
+
+export interface Listing {
+    id: string;
+    vehicle_id: string;
+    user_id: string;
+    price_pence: number;
+    description: string;
+    location: string | null;
+    status: ListingStatus;
+    payment_intent_id: string | null;
+    paid_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+// The shape returned by listActiveListings — a listing joined with just
+// enough of its vehicle's public facts to render a marketplace card.
+export interface ListingWithVehicle extends Listing {
+    make: string;
+    model: string;
+    year: number | null;
+    colour: string | null;
+    vehicle_type: "car" | "motorcycle";
+    moto_id_number: string;
+    photo_r2_key: string | null;
+}
+
+/** Returns null (rather than throwing) if this fails — most likely migration 0017 not yet applied — so callers can show a friendly "not available yet" message instead of a 500. */
+export async function createListing(
+    db: D1Database,
+    vehicleId: string,
+    userId: string,
+    input: { pricePence: number; description: string; location: string | null }
+): Promise<Listing | null> {
+    const id = newId();
+    const now = new Date().toISOString();
+    try {
+          await db
+                .prepare(
+                      `INSERT INTO listings (id, vehicle_id, user_id, price_pence, description, location, status)
+                       VALUES (?, ?, ?, ?, ?, ?, 'pending_payment')`
+                )
+                .bind(id, vehicleId, userId, input.pricePence, input.description, input.location)
+                .run();
+    } catch (err) {
+          console.error("createListing failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return null;
+    }
+    return {
+          id,
+          vehicle_id: vehicleId,
+          user_id: userId,
+          price_pence: input.pricePence,
+          description: input.description,
+          location: input.location,
+          status: "pending_payment",
+          payment_intent_id: null,
+          paid_at: null,
+          created_at: now,
+          updated_at: now,
+    };
+}
+
+export async function getListingById(db: D1Database, id: string): Promise<Listing | null> {
+    try {
+          const row = await db.prepare("SELECT * FROM listings WHERE id = ?").bind(id).first<Listing>();
+          return row ?? null;
+    } catch (err) {
+          console.error("getListingById failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return null;
+    }
+}
+
+/** Most recent listing for a vehicle, regardless of status — drives the "List for sale" / "Manage listing" page. */
+export async function getLatestListingForVehicle(db: D1Database, vehicleId: string): Promise<Listing | null> {
+    try {
+          const row = await db
+                .prepare("SELECT * FROM listings WHERE vehicle_id = ? ORDER BY created_at DESC LIMIT 1")
+                .bind(vehicleId)
+                .first<Listing>();
+          return row ?? null;
+    } catch (err) {
+          console.error("getLatestListingForVehicle failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return null;
+    }
+}
+
+/** Public browse page — newest-first, optionally filtered to one vehicle type. */
+export async function listActiveListings(db: D1Database, vehicleType?: "car" | "motorcycle"): Promise<ListingWithVehicle[]> {
+    try {
+          const query = `
+                SELECT l.*, v.make, v.model, v.year, v.colour, v.vehicle_type, v.moto_id_number, v.photo_r2_key
+                FROM listings l
+                JOIN vehicles v ON v.id = l.vehicle_id
+                WHERE l.status = 'active' ${vehicleType ? "AND v.vehicle_type = ?" : ""}
+                ORDER BY l.paid_at DESC`;
+          const stmt = vehicleType ? db.prepare(query).bind(vehicleType) : db.prepare(query);
+          const { results } = await stmt.all<ListingWithVehicle>();
+          return results;
+    } catch (err) {
+          console.error("listActiveListings failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return [];
+    }
+}
+
+/** Flips a pending_payment listing to active once its listing fee is paid. Idempotent: returns false (no-op) if it wasn't still pending. */
+export async function setListingPaid(db: D1Database, listingId: string, paymentIntentId: string | null): Promise<boolean> {
+    try {
+          const res = await db
+                .prepare(
+                      `UPDATE listings SET status = 'active', payment_intent_id = ?, paid_at = datetime('now'), updated_at = datetime('now')
+                       WHERE id = ? AND status = 'pending_payment'`
+                )
+                .bind(paymentIntentId, listingId)
+                .run();
+          return (res.meta?.changes ?? 0) > 0;
+    } catch (err) {
+          console.error("setListingPaid failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return false;
+    }
+}
+
+/** Owner-only transition — mark sold or delist. Only acts on a listing that's currently active (or, for "removed", also pending_payment, so an unpaid draft can be cancelled). */
+export async function setListingStatus(db: D1Database, listingId: string, status: "sold" | "removed"): Promise<void> {
+    try {
+          const fromStatuses = status === "removed" ? "('active', 'pending_payment')" : "('active')";
+          await db
+                .prepare(`UPDATE listings SET status = ?, updated_at = datetime('now') WHERE id = ? AND status IN ${fromStatuses}`)
+                .bind(status, listingId)
+                .run();
+    } catch (err) {
+          console.error("setListingStatus failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+    }
+}
+
+/** Owner-only edit of the listing's own text/price — never re-charges the flat listing fee. Only acts on an active listing. */
+export async function updateListingDetails(
+    db: D1Database,
+    listingId: string,
+    input: { pricePence: number; description: string; location: string | null }
+): Promise<void> {
+    try {
+          await db
+                .prepare(
+                      `UPDATE listings SET price_pence = ?, description = ?, location = ?, updated_at = datetime('now')
+                       WHERE id = ? AND status = 'active'`
+                )
+                .bind(input.pricePence, input.description, input.location, listingId)
+                .run();
+    } catch (err) {
+          console.error("updateListingDetails failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+    }
+}
+
+/** Returns false (rather than throwing) on failure — the caller still emails the seller directly either way, so a DB hiccup here doesn't lose the inquiry. */
+export async function addListingInquiry(db: D1Database, listingId: string, name: string, email: string, message: string): Promise<boolean> {
+    try {
+          await db
+                .prepare("INSERT INTO listing_inquiries (id, listing_id, name, email, message) VALUES (?, ?, ?, ?, ?)")
+                .bind(newId(), listingId, name, email, message)
+                .run();
+          return true;
+    } catch (err) {
+          console.error("addListingInquiry failed (has migration 0017 been run?):", err instanceof Error ? err.message : String(err));
+          return false;
+    }
+}
