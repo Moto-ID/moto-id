@@ -21,6 +21,8 @@ import {
   addListingInquiry,
   checkRateLimit,
   recordAuthAttempt,
+  listPublicDocuments,
+  getPublicDocument,
   type Listing,
 } from "../lib/db";
 import { createCheckoutSession, retrieveCheckoutSession } from "../lib/stripe";
@@ -148,6 +150,32 @@ marketplace.get("/marketplace/:id", async (c) => {
     ? `<img src="/marketplace/${listing.id}/photo" alt="${esc(vehicle.make)} ${esc(vehicle.model)}" style="width:100%;aspect-ratio:16/10;object-fit:cover;display:block;border:1px solid var(--hairline)">`
     : `<div style="width:100%;aspect-ratio:16/10;background:var(--bg-panel);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-subtle);letter-spacing:0.06em">NO PHOTO SUPPLIED</div>`;
 
+  // The whole Photos folder from the vehicle's own Moto ID profile is shown
+  // here too, not just the single cover photo above — but only the photos
+  // the owner has already marked public (same is_public flag the verify
+  // page honours), never a private upload. A listing is already public by
+  // definition, but the gallery still respects whatever the owner ticked on
+  // each individual photo, same as everywhere else on the site.
+  const publicDocs = await listPublicDocuments(c.env.DB, vehicle.id);
+  const publicPhotos = publicDocs.filter((d) => d.folder === "photo" && d.content_type?.startsWith("image/"));
+  const gallerySection =
+    publicPhotos.length > 0
+      ? `
+          <div style="margin-top:28px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:12px">Photos (${publicPhotos.length})</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px">
+              ${publicPhotos
+                .map(
+                  (d) => `
+              <a href="/marketplace/${listing.id}/documents/${d.id}" target="_blank">
+                <img src="/marketplace/${listing.id}/documents/${d.id}" alt="${esc(d.filename)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--hairline)">
+              </a>`
+                )
+                .join("")}
+            </div>
+          </div>`
+      : "";
+
   const body = `
     <div style="max-width:960px;margin:0 auto;padding:56px 56px 100px">
       <a href="/marketplace" style="font-size:12.5px;color:var(--ink-subtle);display:inline-block;margin-bottom:24px">&larr; Back to the marketplace</a>
@@ -160,6 +188,7 @@ marketplace.get("/marketplace/:id", async (c) => {
             <div style="font-size:13px;color:var(--ink-subtle);margin-bottom:24px">${esc(subtitle || "—")}${listing.location ? ` &middot; ${esc(listing.location)}` : ""}</div>
             <div style="font-size:14px;color:var(--ink-muted);line-height:1.8">${nl2br(listing.description) || "<em>No further description provided.</em>"}</div>
           </div>
+          ${gallerySection}
         </div>
 
         <div>
@@ -228,6 +257,31 @@ marketplace.get("/marketplace/:id/photo", async (c) => {
   const headers = serveHeaders(object.httpMetadata?.contentType ?? null);
   c.header("Content-Type", headers.contentType);
   c.header("Content-Disposition", headers.disposition);
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(object.body as any);
+});
+
+// Serves one photo from the vehicle's public Photos-folder gallery (see
+// gallerySection above). Unauthenticated, same as every other public
+// document route on the site — getPublicDocument only ever returns a row
+// with is_public = 1, so a photo the owner hasn't marked public 404s here
+// exactly as it does on the verify page, even though the listing itself is
+// public. Real byte-sniffing via serveHeaders() matters even more on a
+// route with no auth at all — it's what stops a mislabeled upload from
+// executing as a page on this origin for an anonymous visitor.
+marketplace.get("/marketplace/:id/documents/:docId", async (c) => {
+  const listing = await getListingById(c.env.DB, c.req.param("id"));
+  if (!listing || listing.status !== "active" || !c.env.DOCS) return c.notFound();
+
+  const doc = await getPublicDocument(c.env.DB, listing.vehicle_id, c.req.param("docId"));
+  if (!doc) return c.notFound();
+
+  const object = await c.env.DOCS.get(doc.r2_key);
+  if (!object) return c.notFound();
+
+  const headers = serveHeaders(doc.content_type);
+  c.header("Content-Type", headers.contentType);
+  c.header("Content-Disposition", `${headers.disposition}; filename="${doc.filename.replace(/"/g, "")}"`);
   c.header("Cache-Control", "public, max-age=3600");
   return c.body(object.body as any);
 });
